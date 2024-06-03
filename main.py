@@ -20,8 +20,8 @@ i_beta = 0.0607
 omega_alpha = 160 # [rad/sec]
 omega_heave = 83.3 # [rad/sec]
 
-modes = {'pitch': 160,
-         'heave': 83.3}
+modes = {'pitch': omega_alpha,
+         'heave': omega_heave}
 
 k_alpha = (omega_alpha**2)*i_alpha  # [N/rad]
 k_heave = (omega_heave**2)*mass     # [N/m]
@@ -31,7 +31,7 @@ density = 1.21      # Air density [kg/m^3]
 
 ## SOLUTION PARAMETERS
 PI = 3.141
-SPEED_MIN = 1.0   #[m/s]
+SPEED_MIN = 0.001   #[m/s]
 SPEED_MAX = 200.0   #[m/s]
 SPEED_INC = 1.0   #[m/s]
 
@@ -71,10 +71,39 @@ for mode in modes.values():
 
 print(flutter_results.keys())
 
-print(np.imag(flutter_results['160_p']))
+# Make some plots
+fig1, ax = plt.subplots(2,1)
 
-fig1, ax = plt.subplots()
-# ax.plot(flutter_results['TAS'], flutter_results['160_freq'])
-ax.plot(flutter_results['TAS'], np.imag(flutter_results['160_p']) * flutter_results['TAS']/ geometry['b'])
+# set the basic properties
+ax[0].set_title('Flutter V-g')
+ax[0].set_ylabel('Frequency [rad/sec]')
+ax[0].set_xlabel('Velocity [TAS]')
+ax[1].set_ylabel('Damping g')
+
+
+# set the limits
+ax[0].set_ylim(0,200)
+ax[1].set_ylim(-0.1,0.1)
+ax[0].set_xlim(0,SPEED_MAX)
+ax[1].set_xlim(0,SPEED_MAX)
+
+# set the grid on
+ax[0].grid('on')
+ax[1].grid('on')
+
+# Plot all modes in the modes array
+for mode in modes.values():
+    ax[0].plot(flutter_results['TAS'], np.imag(flutter_results[str(mode)+'_p']) * flutter_results['TAS']/ geometry['b'])
+    ax[1].plot(flutter_results['TAS'], np.real(flutter_results[str(mode)+'_p']) / np.imag(flutter_results[str(mode)+'_p']))
+
+# Add the g=0.03 line
+ax[1].plot(flutter_results['TAS'], flutter_results['TAS']*0+0.03,linestyle='dotted', color='black', linewidth='2')
+ax[1].plot(flutter_results['TAS'], flutter_results['TAS']*0+0.0, color='black', linewidth='2')
+
 plt.show()
 
+# TODO Find a arget value
+
+# 1.1 find if any values == to teh target
+# 1.2 find a spot int eh array where there are values on either side of the target.
+# Print out the speed adn target value, also which mode
