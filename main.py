@@ -68,7 +68,7 @@ for mode in modes.values():
     #flutter_results[str(mode)+'_damp'] = damp
     flutter_results[str(mode)+'_p'] = p_result
 
-# TODO FIX THIS!
+
 print(flutter_results.keys())
 
 print(np.imag(flutter_results['160_p']))

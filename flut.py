@@ -77,6 +77,7 @@ def flut(start_mode_omega,velocity_vector, density, geometry, stiffness, mass):
     # Initalize output
     flutter_freq = np.array([])
     flutter_damp = np.array([])
+    flutter_p = np.array([])
 
     # FOR a given start point
 
@@ -130,7 +131,7 @@ def flut(start_mode_omega,velocity_vector, density, geometry, stiffness, mass):
 
         flutter_freq = np.append(flutter_freq,omega)
         flutter_damp = np.append(flutter_damp,damping_g)
-        flutter_p = p_np1
+        flutter_p = np.append(flutter_p,p_np1)
 
         p_n = p_n*speed/(speed+SPEED_INC)
         p_np1 = p_np1*speed/(speed+SPEED_INC)
