@@ -1,3 +1,13 @@
+# Flutter Analysis Functions
+
+# theo_c: Theoderson Function approximation
+
+# twod_aero: 
+# twod_mass
+# twod_stiffness
+
+# flut
+
 
 import numpy as np
 
