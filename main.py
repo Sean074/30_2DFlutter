@@ -1,4 +1,4 @@
-# 3D Flutter Model (well in work)
+# 2D Flutter Model (well in work)
 #
 #
 
@@ -6,12 +6,10 @@
 import flut
 import numpy as np
 import matplotlib.pyplot as plt
-# TODO flut needs to change to add the 3D stiffness, mass and aerodyamics.
 
 ## USER INPUT
 
 # Geometry
-# TODO Add hinge line geometry, chord, hingeline.
 geometry = {'b': 0.6,
             'a_h': -0.28,
             'x_alpha': 0.2}
@@ -20,21 +18,17 @@ geometry = {'b': 0.6,
 mass = 10.4     # [kg]
 i_alpha = 1.12
 i_beta = 0.0607
-# TODO Add control surface inertia
 
 # Stiffness
 omega_alpha = 160 # [rad/sec]
 omega_heave = 83.3 # [rad/sec]
-# TODO add control surface freq
 
 modes = {'pitch': omega_alpha,
          'heave': omega_heave,
          }
-# TODO Add control surface rotation
 
 k_alpha = (omega_alpha**2)*i_alpha  # [N/rad]
 k_heave = (omega_heave**2)*mass     # [N/m]
-# TODO Add control surface stiffness
 
 # Aerodynamics
 density = 1.21      # Air density [kg/m^3]
@@ -79,8 +73,6 @@ for mode in modes.values():
     flutter_results[str(mode)+'_p'] = p_result
 
 
-print(flutter_results.keys())
-
 # Make some plots
 fig1, ax = plt.subplots(2,1)
 
@@ -113,6 +105,40 @@ ax[1].plot(flutter_results['TAS'], flutter_results['TAS']*0+0.0, color='black', 
 plt.show()
 
 # TODO Find a target value
+
+# Check if any of the modes cross the taget g level 0 and 0.03.
+
+flutter_targets = []
+growth_target = 0.0
+
+for mode in modes.values():
+
+    growth_rate = np.real(flutter_results[str(mode)+'_p']) / np.imag(flutter_results[str(mode)+'_p'])
+
+    index = 0
+    growth_0 = 0
+    speed_0 = 0
+
+    for speed_1 in flutter_results['TAS']:
+        growth_1 = growth_rate[index]
+
+        #print(f"{growth_0} {growth_1}")
+
+        if growth_0 < growth_target and growth_1 > growth_target:
+            print('found a crossing')
+            print(f"Between {speed_0} and {speed_1}")
+
+            # Linear interp to find crossing
+            speed_target = speed_0 + (growth_target-growth_0)*(speed_1-speed_0)/(growth_1-growth_0)
+
+            print(speed_target)
+
+
+        growth_0 = growth_1
+        speed_0 = speed_1
+        
+        index = index+1
+
 
 # 1.1 find if any values == to the target
 # 1.2 find a spot in the array where there are values on either side of the target.
