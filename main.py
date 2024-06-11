@@ -1,12 +1,17 @@
+# 3D Flutter Model (well in work)
+#
+#
 
 # Import
 import flut
 import numpy as np
 import matplotlib.pyplot as plt
+# TODO flut needs to change to add the 3D stiffness, mass and aerodyamics.
 
 ## USER INPUT
 
 # Geometry
+# TODO Add hinge line geometry, chord, hingeline.
 geometry = {'b': 0.6,
             'a_h': -0.28,
             'x_alpha': 0.2}
@@ -15,16 +20,21 @@ geometry = {'b': 0.6,
 mass = 10.4     # [kg]
 i_alpha = 1.12
 i_beta = 0.0607
+# TODO Add control surface inertia
 
 # Stiffness
 omega_alpha = 160 # [rad/sec]
 omega_heave = 83.3 # [rad/sec]
+# TODO add control surface freq
 
 modes = {'pitch': omega_alpha,
-         'heave': omega_heave}
+         'heave': omega_heave,
+         }
+# TODO Add control surface rotation
 
 k_alpha = (omega_alpha**2)*i_alpha  # [N/rad]
 k_heave = (omega_heave**2)*mass     # [N/m]
+# TODO Add control surface stiffness
 
 # Aerodynamics
 density = 1.21      # Air density [kg/m^3]
@@ -102,8 +112,8 @@ ax[1].plot(flutter_results['TAS'], flutter_results['TAS']*0+0.0, color='black', 
 
 plt.show()
 
-# TODO Find a arget value
+# TODO Find a target value
 
-# 1.1 find if any values == to teh target
-# 1.2 find a spot int eh array where there are values on either side of the target.
-# Print out the speed adn target value, also which mode
+# 1.1 find if any values == to the target
+# 1.2 find a spot in the array where there are values on either side of the target.
+# Print out the speed and target value, also which mode
