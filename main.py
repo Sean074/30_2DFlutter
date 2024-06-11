@@ -51,7 +51,7 @@ mass_matrix = flut.twod_mass(inertia_alpha=i_alpha, mass=mass, geometry=geometry
 stiff_matrix = flut.twod_stiffness(k_alpha=k_alpha,k_heave=k_heave)
 
 
-# The better function version.
+# The function version of the flutter solver
 flutter_results = {'TAS': velocity}
 
 for mode in modes.values():
@@ -64,12 +64,8 @@ for mode in modes.values():
                              mass=mass_matrix,
                              )
     
-    #flutter_results[str(mode)+'_freq'] = freq
-    #flutter_results[str(mode)+'_damp'] = damp
     flutter_results[str(mode)+'_p'] = p_result
 
-
-print(flutter_results.keys())
 
 # Make some plots
 fig1, ax = plt.subplots(2,1)
@@ -131,8 +127,13 @@ for mode in modes.values():
 
             print(speed_target)
 
-
         growth_0 = growth_1
         speed_0 = speed_1
         
         index = index+1
+
+        # TODO add the output to a matrix, thinking pandas
+        # TODO pring output to screen
+        # TODO print output to file
+        # TODO make the plot a function and add to flut.py
+        # TODO make the target and output functions and create flut_plot.py and flut_output.py      
