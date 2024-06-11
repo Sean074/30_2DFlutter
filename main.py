@@ -1,3 +1,6 @@
+# 2D Flutter Analysis
+# Created: Sean O'Meara
+# Date: June 11, 2024
 
 # Import
 import flut
