@@ -106,38 +106,7 @@ plt.show()
 
 # TODO Find a target value
 
-# Check if any of the modes cross the taget g level 0 and 0.03.
 
-flutter_targets = []
-growth_target = 0.0
-
-for mode in modes.values():
-
-    growth_rate = np.real(flutter_results[str(mode)+'_p']) / np.imag(flutter_results[str(mode)+'_p'])
-
-    index = 0
-    growth_0 = 0
-    speed_0 = 0
-
-    for speed_1 in flutter_results['TAS']:
-        growth_1 = growth_rate[index]
-
-        #print(f"{growth_0} {growth_1}")
-
-        if growth_0 < growth_target and growth_1 > growth_target:
-            print('found a crossing')
-            print(f"Between {speed_0} and {speed_1}")
-
-            # Linear interp to find crossing
-            speed_target = speed_0 + (growth_target-growth_0)*(speed_1-speed_0)/(growth_1-growth_0)
-
-            print(speed_target)
-
-
-        growth_0 = growth_1
-        speed_0 = speed_1
-        
-        index = index+1
 
 
 # 1.1 find if any values == to the target
