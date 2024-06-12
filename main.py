@@ -126,19 +126,18 @@ for mode in modes.values():
         #print(f"{growth_0} {growth_1}")
 
         if growth_0 < growth_target and growth_1 > growth_target:
-            print('found a crossing')
-            print(f"Between {speed_0} and {speed_1}")
 
             # Linear interp to find crossing
             speed_target = speed_0 + (growth_target-growth_0)*(speed_1-speed_0)/(growth_1-growth_0)
+
+            print(f"Found a crossing between {speed_0} and {speed_1}: {speed_target}")
+
             found_targets = pd.DataFrame({'Mode': mode,
                                          'Speed': speed_target,
                                          'Growth': growth_target,
                                         }, index=[0])
             
             output_targets = pd.concat([output_targets, found_targets], ignore_index=True)
-
-            print(speed_target)
 
         growth_0 = growth_1
         speed_0 = speed_1
