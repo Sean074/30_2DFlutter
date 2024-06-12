@@ -3,6 +3,7 @@
 import flut
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 ## USER INPUT
 
@@ -104,6 +105,8 @@ plt.show()
 
 flutter_targets = []
 growth_target = 0.0
+output_targets = pd.DataFrame({})
+speed_target = {}
 
 for mode in modes.values():
 
@@ -124,6 +127,12 @@ for mode in modes.values():
 
             # Linear interp to find crossing
             speed_target = speed_0 + (growth_target-growth_0)*(speed_1-speed_0)/(growth_1-growth_0)
+            found_targets = pd.DataFrame({'Mode': mode,
+                                         'Speed': speed_target,
+                                         'Growth': growth_target,
+                                        }, index=[0])
+            
+            output_targets = pd.concat([output_targets, found_targets], ignore_index=True)
 
             print(speed_target)
 
@@ -132,8 +141,9 @@ for mode in modes.values():
         
         index = index+1
 
-        # TODO add the output to a matrix, thinking pandas
-        # TODO pring output to screen
+print("Targets found:")
+print(found_targets)
+
         # TODO print output to file
         # TODO make the plot a function and add to flut.py
         # TODO make the target and output functions and create flut_plot.py and flut_output.py      
