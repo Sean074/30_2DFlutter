@@ -1,6 +1,6 @@
 # H.1 Dynamics Aeroelastic Calculation
 
-# Impoprts
+# Imports
 import numpy as np
 from numpy import linalg as npla
 
@@ -73,7 +73,7 @@ def aero_damp_matrix(damping, velocity, density):
 
     return C
 
-# Set up the eighen value problem 
+# Set up the eigen value problem 
 # Loop for each velocity
 for velocity in np.arange(vel_start, vel_max, vel_inc):
           

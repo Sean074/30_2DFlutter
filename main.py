@@ -106,8 +106,8 @@ ax[1].plot(flutter_results['TAS'], flutter_results['TAS']*0+0.0, color='black', 
 
 plt.show()
 
-# TODO Find a arget value
+# TODO Find a target value
 
-# 1.1 find if any values == to teh target
-# 1.2 find a spot int eh array where there are values on either side of the target.
-# Print out the speed adn target value, also which mode
+# 1.1 find if any values == to the target
+# 1.2 find a spot in the array where there are values on either side of the target.
+# Print out the speed and target value, also which mode

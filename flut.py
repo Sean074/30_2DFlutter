@@ -13,8 +13,8 @@ def twod_aero (k, theo_c, geometry):
     b = geometry['b']
     a_h = geometry['a_h']
 
-# 2D Aerodynamics assumed the oscillatory aerodynamics so position and velocity
-# are related.
+    # 2D Aerodynamics assumed the oscillatory aerodynamics so position and velocity
+    # are related.
     a11 = (k**2)/b - 2*theo_c*1j*k/b
     a12 = -(k**2)*a_h - 1j*k - 2*theo_c*((0.5-a_h)*1j*k+1)
     a21 = 2*theo_c*(0.5+a_h)*1j*k - (k**2)*a_h
