@@ -1,4 +1,3 @@
-
 import numpy as np
 
 def theo_c (k):
@@ -13,8 +12,8 @@ def twod_aero (k, theo_c, geometry):
     b = geometry['b']
     a_h = geometry['a_h']
 
-# 2D Aerodynamics assumed the oscillatory aerodynamics so position and velocity
-# are related.
+    # 2D Aerodynamics assumed the oscillatory aerodynamics so position and velocity
+    # are related.
     a11 = (k**2)/b - 2*theo_c*1j*k/b
     a12 = -(k**2)*a_h - 1j*k - 2*theo_c*((0.5-a_h)*1j*k+1)
     a21 = 2*theo_c*(0.5+a_h)*1j*k - (k**2)*a_h
@@ -53,9 +52,9 @@ def twod_stiffness (k_alpha, k_heave):
     return k_matrix
 
 
-def flut(start_mode_omega,velocity_vector, density, geometry, stiffness, mass):
-    # Flutter solver p-k method with determinate iteration.  Note aero embedded, currentlimitation.
-    # TODO make the A matrix a function of of k and interpolate inside of flut.
+def flut(start_mode_omega, velocity_vector, density, geometry, stiffness, mass):
+    # Flutter solver p-k method with determinate iteration.  Note aero embedded, current limitation.
+    # TODO make the A matrix a function of k and interpolate inside of flut.
 
     import flut
     import numpy as np
@@ -68,72 +67,75 @@ def flut(start_mode_omega,velocity_vector, density, geometry, stiffness, mass):
     stiff_matrix = stiffness
 
     # Function Defined Constants
-    DETERMINATE_ITERATIONS = 10
-    K_TOLLERANCE = 0.0001
+    DETERMINATE_ITERATIONS = 100
+    detF_TOLL = 0.001
 
-    PI = 3.141
+    PI = 3.1415926
     SPEED_INC = velocity_vector[1]-velocity_vector[0]
 
     # Initalize output
-    flutter_freq = np.array([])
-    flutter_damp = np.array([])
     flutter_p = np.array([])
 
     # FOR a given start point
 
     # Initial estimate of the differential operator p at low speed
-    k_n = start_mode_omega*b/velocity_vector[0]
-    k_np1 = start_mode_omega*b/velocity_vector[0]
+    k_2 = start_mode_omega*b/velocity_vector[0]
+    k_1 = k_2
 
-    p_n = 0.01*k_n + k_n*1j
-    p_np1 = 0 + k_np1*1j
+    p_1 = -0.01*k_2 + k_2*1j
+    p_2 = 0.0 + k_2*1j
 
     for speed in velocity_vector:
         # For each speed determine the flutter solution
             
-        tollerance=False
-        iterations = 1
+        tollerance = False
+        iterations = 0
 
-        while (tollerance == False) & (iterations <= DETERMINATE_ITERATIONS):
-            # Iterate the det(F) until a converged solution
-            
-            c_kn = flut.theo_c(k_n)
-            A_matrix_n = flut.twod_aero(k=k_n, theo_c=c_kn, geometry=geometry)       
-            F_V_p_n = (speed/b)**2*p_n**2*mass_matrix + stiff_matrix - density*PI*b*speed**2*A_matrix_n
-            F_n = np.linalg.det(F_V_p_n)
-
-            c_knp1 = flut.theo_c(k_np1)
-            A_matrix_np1 = flut.twod_aero(k=k_np1, theo_c=c_knp1, geometry=geometry)
-            F_V_p_np1 = (speed/b)**2*p_np1**2*mass_matrix + stiff_matrix - density*PI*b*speed**2*A_matrix_np1
-            F_np1 = np.linalg.det(F_V_p_np1)
-
-            p_np2 = (p_np1*F_n - p_n*F_np1)/(F_n - F_np1)
-
-            if (np.imag(p_np2) - np.imag(p_np1))**2 < K_TOLLERANCE**2:
-                tollerance = True
-                    
+        while (tollerance == False):
             iterations = iterations + 1
 
-            # New values of k
-            k_n = np.imag(p_np1)
-            k_np1 = np.imag(p_np2)
+            # Iterate the det(F) until a converged solution
+            c_1 = flut.theo_c(k_1)
+            A_matrix_1 = flut.twod_aero(k=k_1, theo_c=c_1, geometry=geometry)       
+            F_1 = (speed/b)**2*p_1**2*mass_matrix + stiff_matrix - density*PI*b*speed**2*A_matrix_1
+            detF_1 = np.linalg.det(F_1)
 
-            # Freq and Damping
-            omega = speed * np.imag(p_np2) / b
-            damping_g = np.real(p_np2) / np.imag(p_np2)
+            #evals, evecs = np.linalg.eig(F_V_p_n)
 
-            # New values of p
-            p_n = p_np1
-            p_np1 = p_np2
+            c_2 = flut.theo_c(k_2)
+            A_matrix_2 = flut.twod_aero(k=k_2, theo_c=c_2, geometry=geometry)
+            F_2 = (speed/b)**2*p_2**2*mass_matrix + stiff_matrix - density*PI*b*speed**2*A_matrix_2
+            detF_2 = np.linalg.det(F_2)
+            
+            p_3 = (p_2*detF_1 - p_1*detF_2)/(detF_1 - detF_2)
 
-        if iterations == DETERMINATE_ITERATIONS:
-            print(f"WARNING: Max iterations reached at speed {speed} delta k = {k_np1-k_n}")
+            # Doing this in this step and not using in in the next is a computational waste
+            # TODO refactor to use this in the next iteration.
+            k_3 = np.imag(p_3)
+            c_3 = flut.theo_c(k_3)
+            A_matrix_3 = flut.twod_aero(k=k_3, theo_c=c_3, geometry=geometry)       
+            F_3 = (speed/b)**2*p_3**2*mass_matrix + stiff_matrix - density*PI*b*speed**2*A_matrix_3
+            detF_3 = np.linalg.det(F_3)
+            detF3_length = np.sqrt((np.real(detF_3)**2 + np.imag(detF_3)**2))
 
-        flutter_freq = np.append(flutter_freq,omega)
-        flutter_damp = np.append(flutter_damp,damping_g)
-        flutter_p = np.append(flutter_p,p_np1)
+            if detF3_length <= detF_TOLL:
+                #print(f"{iterations}: P_3 {p_3}, LF_3 = {detF3_length}")
+                tollerance = True
+            else:            
+                # New values of p
+                p_1 = p_2
+                p_2 = p_3
 
-        p_n = p_n*speed/(speed+SPEED_INC)
-        p_np1 = p_np1*speed/(speed+SPEED_INC)
+                k_1 = np.imag(p_1)
+                k_2 = np.imag(p_2)
+
+
+        flutter_p = np.append(flutter_p, p_3)
+
+        #print(f"Speed {speed}, omega {omega}, k_n {k_n}")
+
+        p_1 = p_1*speed/(speed+SPEED_INC)
+        p_2 = p_2*speed/(speed+SPEED_INC)
 
     return flutter_p # flutter_freq, flutter_damp
+
