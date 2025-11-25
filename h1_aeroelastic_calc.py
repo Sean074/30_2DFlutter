@@ -1,5 +1,7 @@
 # H.1 Dynamics Aeroelastic Calculation
 
+# NOT WORKING!
+
 # Imports
 import numpy as np
 from numpy import linalg as npla
@@ -13,7 +15,7 @@ c = 2.0            # chord [m]
 m = 100.0          # unit mass/area of wing
 kappa_freq = 5     # heave frequecy [Hz]
 thete_freq = 10    # torsion freq [Hz]
-xcm = 0.5 * c      # posiion od cg from leading edge
+xcm = 0.5 * c      # posiion of cg from leading edge
 xf = 0.48 * c      # position of the elastic axis from leading edge
 
 e = xf/c-0.25      # eccentricity between the flexual axis and the aero center at (0.25c)
@@ -30,14 +32,14 @@ if damping:  # structural proportional damping C = alpha*M+beta*K
     beta = 2*(z2*w2-z1*w1) / (w2**2-w1**2)
 
 # Aerodynamic Definition
-vel_start = 1.0      # initial startingvelocity
+vel_start = 1.0      # initial starting velocity
 vel_max   = 18.0    # velocity range
 vel_inc   = 1.0    # velicity increment
 
 rho = 1.225        # air density
 
 a = 2*PI      # lift curve slope
-m_thete_dot = -1.2 # Unstrady aero damping
+m_thete_dot = -1.2 # Unsteady aero damping
 
 # Set up system matrices
 
@@ -92,8 +94,7 @@ for velocity in np.arange(vel_start, vel_max, vel_inc):
     matrix = np.concatenate((matrix1, matrix2),axis=0)
 
     landa = npla.eigvals(matrix)
-    
-    print(velocity)
+
     # Natural Freq and Damping Ratio
     for mode in landa:
         eigen_val_real = np.real(mode)
@@ -101,5 +102,4 @@ for velocity in np.arange(vel_start, vel_max, vel_inc):
         freq = np.sqrt(eigen_val_real**2+eigen_val_imag**2)/(2*PI)  # Hz
         damp = -100*eigen_val_real/freq
 
-        print(freq)
-        print(damp)
+        print(velocity, freq, damp)

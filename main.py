@@ -1,6 +1,6 @@
 # 2D Flutter Analysis
 # Created: Sean O'Meara
-# Date: June 11, 2024
+# Date: Nov 24, 2025
 # Version: Pre Basic and Stable
 
 # Import
@@ -9,11 +9,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ## USER INPUT
+# TODO make this a septate function/file
+# TODO make user commd line input and output to file
 
 # Geometry
-geometry = {'b': 0.6,
-            'a_h': -0.28,
-            'x_alpha': 0.2}
+geometry = {'b': 0.5,       # Semi chord length [m]
+            'a_h': 0.25,   # Location aft of the semi-chord of the elastic axis [% semi chord, +ve aft]
+            'x_alpha': 0.2, # Location of the cg aft of the elastic axis [% semi chord, +ve aft]
+            }
 
 # Mass Properties
 mass = 10.4     # [kg]
@@ -21,8 +24,8 @@ i_alpha = 1.12
 i_beta = 0.0607
 
 # Stiffness
-omega_alpha = 160 # [rad/sec]
-omega_heave = 83.3 # [rad/sec]
+omega_alpha = 30 # [rad/sec]
+omega_heave = 20 # [rad/sec]
 
 modes = {'pitch': omega_alpha,
          'heave': omega_heave}
@@ -33,11 +36,11 @@ k_heave = (omega_heave**2)*mass     # [N/m]
 # Aerodynamics
 density = 1.21      # Air density [kg/m^3]
 
-## SOLUTION PARAMETERS
-PI = 3.141
-SPEED_MIN = 0.001   #[m/s]
-SPEED_MAX = 200.0   #[m/s]
-SPEED_INC = 1.0   #[m/s]
+## SOLUTION PARAMETER
+PI = 3.1415926
+SPEED_MIN = .01   #[m/s]
+SPEED_MAX = 50.0   #[m/s]
+SPEED_INC = .01   #[m/s]
 
 # BUILD VELOCITY ARRAY
 velocity = np.array([])
@@ -60,6 +63,7 @@ flutter_results = {'TAS': velocity}
 
 for mode in modes.values():
     print(f'Starting mode {mode}')
+
     p_result = flut.flut(start_mode_omega= mode,
                              velocity_vector=velocity,
                              density=density,
@@ -68,14 +72,12 @@ for mode in modes.values():
                              mass=mass_matrix,
                              )
     
-    #flutter_results[str(mode)+'_freq'] = freq
-    #flutter_results[str(mode)+'_damp'] = damp
     flutter_results[str(mode)+'_p'] = p_result
 
-
-print(flutter_results.keys())
-
 # Make some plots
+# TODO make this a septate function/file
+# TODO add some data about the case
+# TODO add some engineering controls
 fig1, ax = plt.subplots(2,1)
 
 # set the basic properties
@@ -84,16 +86,17 @@ ax[0].set_ylabel('Frequency [rad/sec]')
 ax[0].set_xlabel('Velocity [TAS]')
 ax[1].set_ylabel('Damping g')
 
-
 # set the limits
-ax[0].set_ylim(0,200)
-ax[1].set_ylim(-0.1,0.1)
+ax[0].set_ylim(0,50)
+ax[1].set_ylim(-0.2,0.3)
 ax[0].set_xlim(0,SPEED_MAX)
 ax[1].set_xlim(0,SPEED_MAX)
+
 
 # set the grid on
 ax[0].grid('on')
 ax[1].grid('on')
+
 
 # Plot all modes in the modes array
 for mode in modes.values():
@@ -107,7 +110,7 @@ ax[1].plot(flutter_results['TAS'], flutter_results['TAS']*0+0.0, color='black', 
 plt.show()
 
 # TODO Find a target value
+# search P-target to find index where damping went positive (changed sign?).
+# 0.0 then occurs between index and index-1.
+# linear interpolate to find value of speed.
 
-# 1.1 find if any values == to the target
-# 1.2 find a spot in the array where there are values on either side of the target.
-# Print out the speed and target value, also which mode
