@@ -1,0 +1,130 @@
+variable_name,symbol,code_variable_name,default_units,si_standard_units,imperial_standard_units,definition_of_positive,applicable_discipline,source
+Altitude,H,h_ft,h_ft,h_m,h_ft,Positive above mean sea level (MSL),Aerodynamics / Loads,Anderson §1.8
+True airspeed,V,v_m_s,m/s,m/s,ft/s,Positive in direction of flight (forward),Aerodynamics / Loads / S&C,Anderson §1.8
+Dynamic pressure,q,q_dyn_pa,Pa,Pa,psf,Always positive (½ρV²),Aerodynamics / Loads,Anderson §1.8
+Static pressure,p_s,p_static_pa,Pa,Pa,psi,Always positive (absolute),Aerodynamics,Anderson §1.8
+Air density,ρ,rho_kg_m3,kg/m³,kg/m³,slug/ft³,Always positive,Aerodynamics / Loads,ISA (ICAO Doc 7488)
+Temperature,T,t_k,K,K,°R,Always positive (absolute),Aerodynamics,ISA (ICAO Doc 7488)
+Speed of sound,a,a_m_s,m/s,m/s,ft/s,Always positive,Aerodynamics,Anderson §1.7
+Mach number,M,mach_nd,-,-,-,Always positive (V/a),Aerodynamics,Anderson §1.8
+Reynolds number,Re,re_nd,-,-,-,Always positive (ρVc/μ),Aerodynamics,Anderson §1.8
+Lift coefficient,CL,cl_nd,-,-,-,Positive upward (perpendicular to V away from Earth),Aerodynamics,Anderson §2.3
+Drag coefficient,CD,cd_nd,-,-,-,Positive aft (opposing direction of motion),Aerodynamics,Anderson §2.3
+Profile (zero-lift) drag coefficient,CD0,cd_0_nd,-,-,-,Always positive,Aerodynamics,Anderson §5.4
+Induced drag coefficient,CDi,cd_i_nd,-,-,-,Always positive,Aerodynamics,Anderson §5.4
+Pitching moment coefficient (about c/4),Cm,cm_nd,-,-,-,Positive nose-up,Aerodynamics,Anderson §4.3
+Side force coefficient,CY,cy_nd,-,-,-,Positive to starboard (+y body axis),Aerodynamics / S&C,Etkin §3.3
+Rolling moment coefficient,Cl,cl_roll_nd,-,-,-,Positive right-hand rule about +x (right wing down),Aerodynamics / S&C,Etkin §3.3
+Yawing moment coefficient,Cn,cn_nd,-,-,-,Positive right-hand rule about +z (nose right); z-axis positive down,Aerodynamics / S&C,Etkin §3.3
+Lift,L,l_n,N,N,lbf,Positive upward (perpendicular to V),Aerodynamics / Loads,Anderson §2.3
+Drag,D,d_n,N,N,lbf,Positive aft (opposing motion),Aerodynamics / Loads,Anderson §2.3
+Side force,Y,y_force_n,N,N,lbf,Positive to starboard,Aerodynamics / S&C,Etkin §3.3
+Pitching moment,M_pitch,m_pitch_nm,N·m,N·m,ft·lbf,Positive nose-up,Aerodynamics,Anderson §4.3
+Angle of attack,α,alpha_rad,deg,rad,deg,Positive nose-up from velocity vector to chord line,Aerodynamics / S&C,Anderson §1.5
+Sideslip angle,β,beta_rad,deg,rad,deg,Positive nose-left (wind arriving from right / starboard),Aerodynamics / S&C,Etkin §3.3
+Wing chord,c,c_m,m,m,ft,Always positive (LE to TE),Aerodynamics / Aeroelastics,Anderson §1.5
+Wing semi-span,s,s_m,m,m,ft,Always positive (root to tip),Aerodynamics / Loads,Anderson §5.3
+Wing reference area,S_ref,s_ref_m2,m²,m²,ft²,Always positive,Aerodynamics / Loads,Anderson §5.3
+Wing aspect ratio,AR,ar_nd,-,-,-,Always positive (b²/S),Aerodynamics,Anderson §5.3
+Mean aerodynamic chord,MAC,mac_m,m,m,ft,Always positive,Aerodynamics / S&C,Anderson §5.3
+Lift-curve slope,CLα,cl_alpha_per_rad,1/rad,1/rad,1/deg,Positive (lift increases with α),Aerodynamics,Anderson §4.2
+Oswald efficiency factor,e,e_nd,-,-,-,0 < e ≤ 1,Aerodynamics,Anderson §5.4
+Zero-lift angle of attack,α0,alpha_0_rad,deg,rad,deg,Typically negative for cambered aerofoil,Aerodynamics,Anderson §4.1
+Induced drag factor,k_i,k_ind_nd,-,-,-,Always positive (1/(π·AR·e)),Aerodynamics,Anderson §5.4
+Dynamic viscosity,μ,mu_dyn_pa_s,Pa·s,Pa·s,lbf·s/ft²,Always positive,Aerodynamics,Anderson §1.8
+Kinematic viscosity,ν,nu_kin_m2_s,m²/s,m²/s,ft²/s,Always positive,Aerodynamics,Anderson §1.8
+Roll rate,p,p_roll_rad_s,deg/s,rad/s,deg/s,Positive right-hand rule about body +x axis (right wing down),S&C,Etkin §5.1
+Pitch rate,q,q_pitch_rad_s,deg/s,rad/s,deg/s,Positive right-hand rule about body +y axis (nose up),S&C,Etkin §5.1
+Yaw rate,r,r_yaw_rad_s,deg/s,rad/s,deg/s,Positive right-hand rule about body +z axis (nose right; z down),S&C,Etkin §5.1
+Bank (roll) Euler angle,φ,phi_rad,deg,rad,deg,Positive right wing down (rotation about stability x-axis),S&C,Etkin §4.2
+Pitch Euler angle,θ,theta_rad,deg,rad,deg,Positive nose-up,S&C,Etkin §4.2
+Heading / yaw Euler angle,ψ,psi_rad,deg,rad,deg,Positive clockwise from north (viewed from above),S&C,Etkin §4.2
+Elevator deflection,δe,delta_e_rad,deg,rad,deg,Positive trailing edge down (produces nose-up pitching moment),S&C,Etkin §7.1
+Aileron deflection,δa,delta_a_rad,deg,rad,deg,Positive right aileron trailing edge down (produces right roll),S&C,Etkin §7.2
+Rudder deflection,δr,delta_r_rad,deg,rad,deg,Positive trailing edge left (produces nose-right yaw),S&C,Etkin §7.3
+Flap deflection,δf,delta_f_rad,deg,rad,deg,Positive trailing edge down (increases camber),Aerodynamics / S&C,Anderson §4.8
+Neutral point (fraction MAC from LE),hn,x_np_nd,-,-,-,Positive aft of LE along MAC,S&C,Etkin §6.2
+CG position (fraction MAC from LE),h,x_cg_nd,-,-,-,Positive aft of LE along MAC,S&C,Etkin §6.2
+Static margin,SM,sm_nd,-,-,-,Positive when NP is aft of CG (stable),S&C,Etkin §6.2
+Pitch stiffness derivative (Cmα),Cmα,cm_alpha_per_rad,1/rad,1/rad,1/deg,Negative for longitudinally stable aircraft,S&C,Etkin §6.2
+Pitch damping derivative (Cmq),Cmq,cm_q_per_rad,1/rad,1/rad,1/deg,Negative (opposing pitching),S&C,Etkin §7.1
+Roll damping derivative (Clp),Clp,cl_roll_p_per_rad,1/rad,1/rad,1/deg,Negative (opposing rolling),S&C,Etkin §7.2
+Yaw damping derivative (Cnr),Cnr,cn_r_per_rad,1/rad,1/rad,1/deg,Negative (opposing yawing),S&C,Etkin §7.3
+Dihedral effect (Clβ),Clβ,cl_roll_beta_per_rad,1/rad,1/rad,1/deg,Negative for stable dihedral effect,S&C,Etkin §7.2
+Weathercock stability (Cnβ),Cnβ,cn_beta_per_rad,1/rad,1/rad,1/deg,Positive for directionally stable aircraft,S&C,Etkin §7.3
+x body-axis velocity perturbation,u,u_m_s,m/s,m/s,ft/s,Positive forward along body x-axis,S&C,Etkin §5.1
+y body-axis velocity perturbation,v,v_m_s,m/s,m/s,ft/s,Positive starboard along body y-axis,S&C,Etkin §5.1
+z body-axis velocity perturbation,w,w_m_s,m/s,m/s,ft/s,Positive downward along body z-axis (z positive down),S&C,Etkin §5.1
+Moment of inertia (roll axis),Ixx,i_xx_kg_m2,kg·m²,kg·m²,slug·ft²,Always positive,S&C / Aeroelastics,Etkin §4.4
+Moment of inertia (pitch axis),Iyy,i_yy_kg_m2,kg·m²,kg·m²,slug·ft²,Always positive,S&C / Aeroelastics,Etkin §4.4
+Moment of inertia (yaw axis),Izz,i_zz_kg_m2,kg·m²,kg·m²,slug·ft²,Always positive,S&C / Aeroelastics,Etkin §4.4
+Product of inertia,Ixz,i_xz_kg_m2,kg·m²,kg·m²,slug·ft²,Positive per right-hand convention (∫xz dm),S&C,Etkin §4.4
+Aircraft total mass,m_ac,m_ac_kg,kg,kg,slug,Always positive,S&C / Loads,Etkin §4.4
+Wing semi-chord,b,b_m,m,m,ft,Always positive (half of chord c),Aeroelastics,Bisplinghoff §5.1
+Elastic axis offset (aft of midchord / b),ah,a_h_nd,-,-,-,Positive aft of midchord,Aeroelastics,Bisplinghoff §5.2
+Static unbalance (CG offset from EA / b),xα,x_alpha_nd,-,-,-,Positive when CG is aft of elastic axis,Aeroelastics,Bisplinghoff §5.2
+Section mass per unit span,m_s,m_s_kg_m,kg/m,kg/m,slug/ft,Always positive,Aeroelastics,Bisplinghoff §5.1
+Section pitch moment of inertia about EA,Iα,i_alpha_kg_m2,kg·m²,kg·m²,slug·ft²,Always positive,Aeroelastics,Bisplinghoff §5.1
+Section first mass moment about EA,Sα,s_alpha_kg_m,kg·m,kg·m,slug·ft,Positive when CG is aft of elastic axis,Aeroelastics,Bisplinghoff §5.1
+Plunge (heave) natural frequency,ωh,omega_h_rad_s,rad/s,rad/s,rad/s,Always positive,Aeroelastics,Bisplinghoff §5.3
+Pitch (torsion) natural frequency,ωα,omega_alpha_rad_s,rad/s,rad/s,rad/s,Always positive,Aeroelastics,Bisplinghoff §5.3
+Frequency ratio (ωh/ωα),ωh/ωα,omega_ratio_nd,-,-,-,Always positive (0 < ωh/ωα < 1 typical),Aeroelastics,Bisplinghoff §5.3
+Plunge stiffness,kh,k_h_n_m,N/m,N/m,lbf/ft,Always positive,Aeroelastics,Bisplinghoff §5.1
+Pitch (torsional) stiffness,kα,k_alpha_nm_rad,N·m/rad,N·m/rad,ft·lbf/rad,Always positive,Aeroelastics,Bisplinghoff §5.1
+Structural damping ratio (plunge),gh,g_h_nd,-,-,-,Positive (energy dissipation),Aeroelastics,Bisplinghoff §5.1
+Structural damping ratio (pitch),gα,g_alpha_nd,-,-,-,Positive (energy dissipation),Aeroelastics,Bisplinghoff §5.1
+Reduced frequency,k,k_nd,-,-,-,Positive (ωb/V = imag(p)·b/V),Aeroelastics,Theodorsen (1935)
+Theodorsen function (real part),F,c_k_re_nd,-,-,-,Real part of C(k); 0 < F ≤ 1,Aeroelastics,Theodorsen (1935)
+Theodorsen function (imaginary part),G,c_k_im_nd,-,-,-,Imaginary part of C(k); G ≤ 0,Aeroelastics,Theodorsen (1935)
+p-k complex eigenvalue,p,p_nd,1/s,1/s,1/s,Real(p) > 0 = unstable (divergent); Imag(p) = flutter frequency,Aeroelastics,Hassig (1971)
+Flutter speed,Vf,v_flutter_m_s,m/s,m/s,ft/s,Always positive; onset of neutral stability (real(p)=0),Aeroelastics,Bisplinghoff §5.4
+Flutter frequency,ωf,omega_f_rad_s,rad/s,rad/s,rad/s,Always positive,Aeroelastics,Bisplinghoff §5.4
+Flutter reduced frequency,kf,k_flutter_nd,-,-,-,Positive,Aeroelastics,Bisplinghoff §5.4
+Mass ratio,μ,mu_nd,-,-,-,Positive (m/(π·ρ·b²)),Aeroelastics,Bisplinghoff §5.3
+Radius of gyration (fraction b),rα,r_alpha_nd,-,-,-,Positive (rα² = Iα/(m·b²)),Aeroelastics,Bisplinghoff §5.3
+Normal load factor,nz,nz_nd,-,-,-,Positive upward (1g level flight; +nz = upward acc.),Loads,Lomax §2.1
+Axial load factor,nx,nx_nd,-,-,-,Positive forward along body x-axis,Loads,Lomax §2.1
+Lateral load factor,ny,ny_nd,-,-,-,Positive to starboard,Loads,Lomax §2.1
+Aircraft weight,W,w_aircraft_n,N,N,lbf,Always positive (magnitude of gravity force),Loads,Lomax §2.1
+Maximum take-off weight,MTOW,mtow_n,N,N,lbf,Always positive,Loads,FAR 25.25
+Operating empty weight,OEW,oew_n,N,N,lbf,Always positive,Loads,Lomax §2.2
+Design cruise speed,VC,v_c_m_s,m/s,m/s,kts,Always positive,Loads,FAR 25.335
+Design maneuvering speed,VA,v_a_m_s,m/s,m/s,kts,Always positive,Loads,FAR 25.335 / Lomax §3.2
+Design dive speed,VD,v_d_m_s,m/s,m/s,kts,Always positive; VD ≥ 1.25 VC (FAR 25),Loads,FAR 25.335 / Lomax §3.2
+Design dynamic pressure (cruise),qC,q_c_pa,Pa,Pa,psf,Always positive,Loads,Lomax §3.1
+Design dynamic pressure (dive),qD,q_d_pa,Pa,Pa,psf,Always positive,Loads,Lomax §3.1
+Limit normal load factor (positive),nz_lim_pos,nz_lim_pos_nd,-,-,-,Positive (e.g. +2.5g clean FAR 25),Loads,FAR 25.337 / Lomax §3.2
+Limit normal load factor (negative),nz_lim_neg,nz_lim_neg_nd,-,-,-,Negative (e.g. −1.0g FAR 25),Loads,FAR 25.337 / Lomax §3.2
+Ultimate load factor (positive),nz_ult_pos,nz_ult_pos_nd,-,-,-,Positive (= 1.5 × limit),Loads,FAR 25.303 / Lomax §2.3
+Discrete gust velocity (FAR 25),Ude,u_gust_m_s,m/s,m/s,ft/s,Positive upward (worst-case sign used in analysis),Loads,FAR 25.341 / Lomax §4.2
+Gust alleviation factor,Kg,k_gust_nd,-,-,-,0 < Kg < 1,Loads,FAR 25.341 / Lomax §4.2
+Distributed airload per unit span,w_aero,w_dist_n_m,N/m,N/m,lbf/ft,Positive upward (spanwise load),Loads,Lomax §5.1
+Internal shear force,V_sh,v_shear_n,N,N,lbf,Positive upward on left-hand face (standard beam convention),Loads / Stress,Lomax §5.2
+Internal bending moment,M_b,m_bend_nm,N·m,N·m,ft·lbf,Positive sagging (tension on lower fibre; standard beam),Loads / Stress,Lomax §5.2
+Internal torque / torsional moment,T,t_torque_nm,N·m,N·m,ft·lbf,Positive nose-up for wing (right-hand rule about +x pointing to tip),Loads / Stress,Lomax §5.3
+Internal axial force,N_ax,n_axial_n,N,N,lbf,Positive tension,Stress / Loads,Lomax §5.2
+Normal (direct) stress,σ,sigma_pa,MPa,Pa,psi,Positive tension; negative compression,Stress,Megson §1.4
+Shear stress,τ,tau_pa,MPa,Pa,psi,Positive per right-hand screw rule on face,Stress,Megson §1.4
+Normal strain,ε,epsilon_nd,-,-,-,Positive extension (elongation),Stress,Megson §1.5
+Shear strain,γ,gamma_nd,-,-,-,Positive per engineering shear convention,Stress,Megson §1.5
+Young's modulus,E,e_young_pa,GPa,Pa,psi,Always positive,Stress,Megson §1.6
+Shear modulus,G,g_shear_pa,GPa,Pa,psi,Always positive,Stress,Megson §1.6
+Poisson's ratio,ν,nu_nd,-,-,-,Positive; 0 < ν < 0.5 for isotropic metals,Stress,Megson §1.6
+Material density,ρm,rho_mat_kg_m3,kg/m³,kg/m³,slug/ft³,Always positive,Stress,Material datasheet
+Ultimate tensile strength,σult,sigma_ult_pa,MPa,Pa,ksi,Always positive (material allowable),Stress,Material datasheet / MIL-HDBK-5
+Tensile yield strength,σy,sigma_y_pa,MPa,Pa,ksi,Always positive (material allowable),Stress,Material datasheet / MIL-HDBK-5
+Compressive ultimate strength,σcu,sigma_cu_pa,MPa,Pa,ksi,Always positive (magnitude; compress defined separately),Stress,MIL-HDBK-5
+Critical buckling stress,σcr,sigma_cr_pa,MPa,Pa,ksi,Always positive (onset of buckling),Stress,Megson §9.2
+Second moment of area (about strong axis),Ixx,i_xx_m4,m⁴,m⁴,in⁴,Always positive,Stress,Megson §9.1
+Second moment of area (about weak axis),Iyy,i_yy_m4,m⁴,m⁴,in⁴,Always positive,Stress,Megson §9.1
+Product moment of area,Ixy,i_xy_m4,m⁴,m⁴,in⁴,Signed; zero for doubly-symmetric sections,Stress,Megson §9.1
+Polar moment of area,J,j_m4,m⁴,m⁴,in⁴,Always positive,Stress,Megson §18.1
+Cross-sectional area,A_cs,a_cs_m2,m²,m²,in²,Always positive,Stress,Megson §1.4
+Stress concentration factor,Kt,k_t_nd,-,-,-,≥ 1 (ratio of peak to nominal stress),Stress,Peterson Stress Concentration Factors
+Factor of safety,FoS,fos_nd,-,-,-,≥ 1.0 required; ≥ 1.5 ultimate (FAR 25.303),Stress / Loads,FAR 25.303 / Lomax §2.3
+Margin of safety,MS,ms_nd,-,-,-,≥ 0 required (MS = FoS − 1),Stress / Loads,Lomax §2.3
+Reserve factor,RF,rf_nd,-,-,-,≥ 1.0 required (RF = allowable / applied),Stress / Loads,Lomax §2.3
+True airspeed,TAS,v_tas_m_s,kts,m/s,kts,Positive forward; actual speed of aircraft relative to undisturbed air mass,Aerodynamics / Loads / S&C,Anderson §1.8 / ICAO Annex 2
+Indicated airspeed,IAS,v_ias_m_s,kts,m/s,kts,Positive forward; raw pitot-static reading uncorrected for instrument or position error,Aerodynamics / Loads,ICAO Annex 8 / Lomax §3.1
+Calibrated airspeed,CAS,v_cas_m_s,kts,m/s,kts,Positive forward; IAS corrected for instrument and position (static source) errors,Aerodynamics / Loads,FAR 25.335 / Lomax §3.1
+Equivalent airspeed,EAS,v_eas_m_s,kts,m/s,kts,Positive forward; TAS scaled to sea-level density (EAS = TAS·√(ρ/ρ_SL)); used for structural load calculations,Aerodynamics / Loads,FAR 25.335 / Lomax §3.1
