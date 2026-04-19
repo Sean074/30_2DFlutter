@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "b_m": 0.5,
+  "a_h_nd": 0.25,
+  "x_alpha_nd": -0.5,
+  "mass_kg": 10.4,
+  "inertia_alpha_kg_m2": 1.12,
+  "omega_alpha_rad_s": 26.0,
+  "omega_heave_rad_s": 20.0,
+  "rho_kg_m3": 1.21,
+  "velocity_range_m_s": [0.01, 50.0, 4990],
+  "det_tol_nd": 0.001,
+  "p_init_damp_1_nd": -0.01,
+  "p_init_damp_2_nd": 0.0
+}

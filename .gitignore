@@ -1,2 +1,7 @@
 *scrap*.py
-venv
+.venv/
+.claude/
+.py_test_cache/
+__pycache__/
+
+data/outputs/
