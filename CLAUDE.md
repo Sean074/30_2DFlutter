@@ -9,47 +9,21 @@ A 2D aeroelastic flutter analysis tool implementing the **p-k method** for deter
 ## Running
 
 ```bash
+pip install -r requirements.txt
 python main.py
 ```
 
-No build step. Output is a V-g (velocity-damping) and V-f (velocity-frequency) matplotlib plot.
-
-```bash
-pip install -r requirements.txt
-```
+`main.py` starts the terminal UI (`ui/tui.py`); results go to `data/outputs/` as JSON/CSV/PNG. To build a single-file executable (`flutter2d`): `bash build.sh` on macOS, `build.bat` on Windows (both run PyInstaller on `build.spec`).
 
 ## Architecture
 
-Two entry points, one shared library:
+- **`analysis/flutter.py`** — the p-k solver: `build_mass_matrix`, `build_stiffness_matrix`, `build_aero_matrix` (Theodorsen via the Jones two-pole approximation) and `compute_flutter`, which sweeps velocity and secant-iterates on `det(F(p)) = 0` with `F = (V/b)²p²M + K − ρπb V² A(k)`, seeding each speed from the previous `p` for mode continuity.
+- **`file_io/`** — `loader.py` (JSON/CSV input), `exporter.py` (results out).
+- **`plotting/plots.py`** — V-g / V-f figures: top subplot `imag(p)·V/b` (frequency, rad/s) vs V; bottom `real(p)/imag(p)` (damping `g`) vs V, with a `g = 0.03` limit line. Flutter onset is where `g` crosses zero.
+- **`ui/tui.py`** — the four-stage terminal workflow; the only module that prints.
+- **`tests/`** — mirrors the source tree (`tests/test_flutter.py` ↔ `analysis/flutter.py`).
 
-- **`flut.py`** — the core library. Contains matrix builders (`twod_mass`, `twod_stiffness`, `twod_aero`) and the p-k flutter solver (`flut`). The solver uses secant-method iteration on `det(F) = 0` where `F = (V/b)²p²M + K - ρπb V² A(k)`.
-- **`main.py`** — sets up geometry/mass/stiffness inputs, calls `flut.flut()` once per structural mode, then plots V-g/V-f curves.
-- **`h1_aeroelastic_calc.py`** — a separate, currently non-functional eigenvalue-based approach (strip theory, modal domain). Marked `# NOT WORKING!` at the top; do not rely on it.
-
-### p-k method flow (`flut.flut`)
-
-1. Initial `p` estimate from the structural natural frequency at the lowest speed.
-2. For each speed: iterate with secant method on `det(F(p))` until `|det(F)| < 0.001`.
-3. Seed the next speed using `p` scaled by the speed ratio (continuity tracking).
-4. Returns an array of complex `p` values — one per speed point, per mode.
-
-### Theodorsen function (`flut.theo_c`)
-
-Uses the Jones two-pole rational approximation (not the exact Bessel function form). Reduced frequency `k = imag(p)`.
-
-### Plotting convention
-
-- Top subplot: `imag(p) * V / b` → frequency in rad/s vs velocity.
-- Bottom subplot: `real(p) / imag(p)` → structural damping `g` vs velocity.
-- Flutter onset is where `g` crosses zero (a `g = 0.03` limit line is also drawn).
-
-## Known TODOs in code
-
-- Command-line input / file output (currently hardcoded in `main.py`)
-- Plotting split into its own module
-- Flutter speed auto-detection (linear interpolation across zero-crossing)
-- Refactor `flut` to avoid recomputing `A(k)` redundantly in the secant loop
-- `flask` is listed in `requirements.txt` but is not used anywhere
+The pre-refactor scripts (`flut.py`, `h1_aeroelastic_calc.py`) were removed on 21 Oct 2026; their history is in git.
 
 ## Code Standards
 

@@ -1,8 +1,12 @@
 """Matplotlib visualisation for flutter V-g / V-f diagrams."""
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
+import matplotlib
+if getattr(sys, "frozen", False):
+    matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray
