@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 import time
 from pathlib import Path
 
@@ -28,6 +29,34 @@ _GREEN = "\033[0;32m"
 _CYAN = "\033[0;36m"
 
 _WIDTH = 72
+
+# defaults/ sits next to the package in a source checkout and in the unpacked PyInstaller bundle.
+_DEFAULTS_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent)) / "defaults"
+_DEFAULT_KEYS = (
+    "b_m",
+    "a_h_nd",
+    "x_alpha_nd",
+    "mass_kg",
+    "inertia_alpha_kg_m2",
+    "omega_alpha_rad_s",
+    "omega_heave_rad_s",
+    "rho_kg_m3",
+    "velocity_range_m_s",
+    "k_tol_nd",
+    "max_iter_nd",
+)
+
+
+def _load_defaults(defaults_dir: Path = _DEFAULTS_DIR) -> tuple[dict, dict]:
+    """Load default_flutter.json and constants.json. Raises ValueError if a key is missing."""
+    defaults = load_json(defaults_dir / "default_flutter.json")
+    constants = load_json(defaults_dir / "constants.json")
+    missing = [key for key in _DEFAULT_KEYS if key not in defaults]
+    if "pi_nd" not in constants:
+        missing.append("pi_nd")
+    if missing:
+        raise ValueError(f"missing keys in {defaults_dir}: {', '.join(missing)}")
+    return defaults, constants
 
 
 # ---------------------------------------------------------------------------
@@ -132,63 +161,75 @@ def _confirm(prompt: str, default: bool = True) -> bool | None:
 # Stage 1 — INPUT
 # ---------------------------------------------------------------------------
 
-def _stage1_input() -> dict | None:
-    """Collect all input parameters interactively. Returns None on quit."""
+def _stage1_input(defaults: dict) -> dict | None:
+    """Collect all input parameters interactively, pre-filled from defaults. None on quit."""
     print()
     _header("INPUT", "p-k METHOD")
     print()
 
+    v_min_default_m_s, v_max_default_m_s, n_pts_default = defaults["velocity_range_m_s"]
+
     print(f"{_WHITE_B}  GEOMETRY{_R}")
     _minor()
-    b_m = _prompt_float("SEMI-CHORD b", "m", default=0.5, gt=0.0)
+    b_m = _prompt_float("SEMI-CHORD b", "m", default=defaults["b_m"], gt=0.0)
     if b_m is None:
         return None
-    a_h_nd = _prompt_float("ELASTIC AXIS a", "-1 to 1", default=-0.2, warn_range=(-1.0, 1.0))
+    a_h_nd = _prompt_float(
+        "ELASTIC AXIS a", "-1 to 1", default=defaults["a_h_nd"], warn_range=(-1.0, 1.0)
+    )
     if a_h_nd is None:
         return None
-    x_alpha_nd = _prompt_float("CG OFFSET x_a", "-1 to 1", default=0.1, warn_range=(-0.5, 0.5))
+    x_alpha_nd = _prompt_float(
+        "CG OFFSET x_a", "-1 to 1", default=defaults["x_alpha_nd"], warn_range=(-0.5, 0.5)
+    )
     if x_alpha_nd is None:
         return None
 
     print()
     print(f"{_WHITE_B}  MASS PROPERTIES{_R}")
     _minor()
-    mass_kg = _prompt_float("MASS", "kg", default=10.0, gt=0.0)
+    mass_kg = _prompt_float("MASS", "kg", default=defaults["mass_kg"], gt=0.0)
     if mass_kg is None:
         return None
-    inertia_alpha_kg_m2 = _prompt_float("MOMENT OF INERTIA Ia", "kg.m2", default=0.5, gt=0.0)
+    inertia_alpha_kg_m2 = _prompt_float(
+        "MOMENT OF INERTIA Ia", "kg.m2", default=defaults["inertia_alpha_kg_m2"], gt=0.0
+    )
     if inertia_alpha_kg_m2 is None:
         return None
 
     print()
     print(f"{_WHITE_B}  STRUCTURAL{_R}")
     _minor()
-    omega_heave_rad_s = _prompt_float("HEAVE FREQ omega_h", "rad/s", default=10.0, gt=0.0)
+    omega_heave_rad_s = _prompt_float(
+        "HEAVE FREQ omega_h", "rad/s", default=defaults["omega_heave_rad_s"], gt=0.0
+    )
     if omega_heave_rad_s is None:
         return None
-    omega_alpha_rad_s = _prompt_float("PITCH FREQ omega_a", "rad/s", default=25.0, gt=0.0)
+    omega_alpha_rad_s = _prompt_float(
+        "PITCH FREQ omega_a", "rad/s", default=defaults["omega_alpha_rad_s"], gt=0.0
+    )
     if omega_alpha_rad_s is None:
         return None
 
     print()
     print(f"{_WHITE_B}  AERODYNAMIC{_R}")
     _minor()
-    rho_kg_m3 = _prompt_float("AIR DENSITY rho", "kg/m3", default=1.225, gt=0.0)
+    rho_kg_m3 = _prompt_float("AIR DENSITY rho", "kg/m3", default=defaults["rho_kg_m3"], gt=0.0)
     if rho_kg_m3 is None:
         return None
-    v_min_m_s = _prompt_float("VELOCITY MIN", "m/s", default=1.0, gt=0.0)
+    v_min_m_s = _prompt_float("VELOCITY MIN", "m/s", default=v_min_default_m_s, gt=0.0)
     if v_min_m_s is None:
         return None
 
     while True:
-        v_max_m_s = _prompt_float("VELOCITY MAX", "m/s", default=100.0, gt=0.0)
+        v_max_m_s = _prompt_float("VELOCITY MAX", "m/s", default=v_max_default_m_s, gt=0.0)
         if v_max_m_s is None:
             return None
         if v_max_m_s > v_min_m_s:
             break
         print(f"{_RED}  [E] INVALID INPUT: must be > v_min ({v_min_m_s}). Re-enter.{_R}")
 
-    n_pts_raw = _prompt_float("N VELOCITY POINTS", "-", default=50.0, ge=2.0)
+    n_pts_raw = _prompt_float("N VELOCITY POINTS", "-", default=float(n_pts_default), ge=2.0)
     if n_pts_raw is None:
         return None
 
@@ -300,6 +341,7 @@ def _print_results_table(
 def _solve_modes(
     data: dict,
     velocity_range_m_s: np.ndarray,
+    solver: dict,
 ) -> dict[str, np.ndarray]:
     """Build matrices, solve p-k for each mode, print progress. Returns flutter_p_modes."""
     b_m = data["b_m"]
@@ -320,6 +362,9 @@ def _solve_modes(
         rho_kg_m3=data["rho_kg_m3"],
         b_m=b_m,
         a_h_nd=data["a_h_nd"],
+        k_tol_nd=solver["k_tol_nd"],
+        max_iter_nd=solver["max_iter_nd"],
+        pi_nd=solver["pi_nd"],
     )
     print(" done")
 
@@ -329,7 +374,7 @@ def _solve_modes(
     }
 
 
-def _stage3_output(data: dict) -> tuple[dict[str, np.ndarray], np.ndarray] | None:
+def _stage3_output(data: dict, solver: dict) -> tuple[dict[str, np.ndarray], np.ndarray] | None:
     """Run analysis and print results table. Returns (flutter_p_modes, velocity_range) or None."""
     v_min_m_s: float = data["v_min_m_s"]
     v_max_m_s: float = data["v_max_m_s"]
@@ -344,7 +389,7 @@ def _stage3_output(data: dict) -> tuple[dict[str, np.ndarray], np.ndarray] | Non
 
     t_start = time.perf_counter()
     try:
-        flutter_p_modes = _solve_modes(data, velocity_range_m_s)
+        flutter_p_modes = _solve_modes(data, velocity_range_m_s, solver)
     except (ValueError, KeyError) as exc:
         print(f"\n  {_RED}[E] {exc}{_R}")
         return None
@@ -410,7 +455,7 @@ def _stage4_summary(
 # Main runners
 # ---------------------------------------------------------------------------
 
-def _run_pk_flutter_batch(input_path: Path, save_outputs: bool) -> None:
+def _run_pk_flutter_batch(input_path: Path, save_outputs: bool, solver: dict) -> None:
     """Load inputs from JSON and run p-k flutter (batch / headless mode)."""
     raw = load_json(input_path)
 
@@ -440,7 +485,7 @@ def _run_pk_flutter_batch(input_path: Path, save_outputs: bool) -> None:
     print()
 
     t_start = time.perf_counter()
-    flutter_p_modes = _solve_modes(data, velocity_range_m_s)
+    flutter_p_modes = _solve_modes(data, velocity_range_m_s, solver)
     elapsed_s = time.perf_counter() - t_start
 
     print()
@@ -474,7 +519,7 @@ def _run_pk_flutter_batch(input_path: Path, save_outputs: bool) -> None:
     _stage4_summary(flutter_p_modes, velocity_range_m_s, data["b_m"], save_path)
 
 
-def _run_pk_flutter_interactive() -> None:
+def _run_pk_flutter_interactive(defaults: dict, solver: dict) -> None:
     """Run the full 4-stage interactive workflow."""
     print()
     _header("2D AEROELASTIC FLUTTER ANALYSIS", "p-k METHOD")
@@ -483,7 +528,7 @@ def _run_pk_flutter_interactive() -> None:
     print()
 
     # Stage 1: INPUT
-    data = _stage1_input()
+    data = _stage1_input(defaults)
     if data is None:
         print(f"\n  {_GREEN}Goodbye.{_R}\n")
         return
@@ -496,7 +541,7 @@ def _run_pk_flutter_interactive() -> None:
             return
         if result is True:
             break
-        data = _stage1_input()
+        data = _stage1_input(defaults)
         if data is None:
             print(f"\n  {_GREEN}Goodbye.{_R}\n")
             return
@@ -504,7 +549,7 @@ def _run_pk_flutter_interactive() -> None:
     save_outputs: bool = data.get("_save", True)
 
     # Stage 3: OUTPUT
-    outcome = _stage3_output(data)
+    outcome = _stage3_output(data, solver)
     if outcome is None:
         return
     flutter_p_modes, velocity_range_m_s = outcome
@@ -549,15 +594,26 @@ def run_tui(args: list[str] | None = None) -> None:
 
     save_outputs = not parsed.no_save
 
+    try:
+        defaults, constants = _load_defaults()
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"  {_RED}[E] Cannot load defaults: {exc}{_R}")
+        return
+    solver = {
+        "k_tol_nd": float(defaults["k_tol_nd"]),
+        "max_iter_nd": int(defaults["max_iter_nd"]),
+        "pi_nd": float(constants["pi_nd"]),
+    }
+
     if parsed.batch:
         input_path = Path(parsed.batch)
         if not input_path.exists():
             print(f"  {_RED}[E] File not found: {input_path}{_R}")
             return
         try:
-            _run_pk_flutter_batch(input_path, save_outputs)
+            _run_pk_flutter_batch(input_path, save_outputs, solver)
         except (ValueError, KeyError) as exc:
             print(f"  {_RED}[E] {exc}{_R}")
         return
 
-    _run_pk_flutter_interactive()
+    _run_pk_flutter_interactive(defaults, solver)

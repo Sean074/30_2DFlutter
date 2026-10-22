@@ -103,20 +103,20 @@ Stores universal physical and mathematical constants. Keys follow the `<name>_<u
 
 ### `defaults/default_flutter.json`
 
-Stores default parameter values for the p-k flutter analysis. This includes **all** defaults: values pre-filled in TUI prompts, solver tolerances, and numerical seed values for the iterative method.
+Stores default parameter values for the p-k flutter analysis. This includes **all** defaults: values pre-filled in TUI prompts (`velocity_range_m_s` is `[v_min, v_max, n_points]`) and solver settings.
 
 ```json
 {
   "schema_version": 1,
   "b_m": 0.5,
-  "a_h_nd": 0.25,
-  "x_alpha_nd": -0.5,
-  "mass_kg": 10.4,
-  "inertia_alpha_kg_m2": 1.12,
-  "omega_alpha_rad_s": 26.0,
-  "omega_heave_rad_s": 20.0,
-  "rho_kg_m3": 1.21,
-  "velocity_range_m_s": [0.01, 50.0, 4990],
+  "a_h_nd": -0.2,
+  "x_alpha_nd": 0.1,
+  "mass_kg": 10.0,
+  "inertia_alpha_kg_m2": 0.5,
+  "omega_alpha_rad_s": 25.0,
+  "omega_heave_rad_s": 10.0,
+  "rho_kg_m3": 1.225,
+  "velocity_range_m_s": [1.0, 100.0, 50],
   "k_tol_nd": 1e-10,
   "max_iter_nd": 200
 }
@@ -126,17 +126,18 @@ Stores default parameter values for the p-k flutter analysis. This includes **al
 
 ### Loading pattern
 
-Load defaults once at TUI startup via `file_io/loader.py`. Pass the loaded dict into the prompting functions — do not re-open the files inside analysis modules.
+Load defaults once at TUI startup via `file_io/loader.py`. Pass the loaded dicts into the prompting functions and the solver — do not re-open the files inside analysis modules. Resolve the folder relative to the package (or PyInstaller's `sys._MEIPASS`), never the working directory, and bundle it via `datas` in `build.spec`.
 
 ```python
-# In ui/tui.py — load once at startup
-from file_io.loader import load_json
+# In ui/tui.py — run_tui() loads once and passes the dicts down
+defaults, constants = _load_defaults()  # checks required keys; [E] and exit on failure
 
-_DEFAULTS = load_json("defaults/default_flutter.json")
-_CONSTANTS = load_json("defaults/constants.json")
+# Prompt defaults come from the loaded dict
+b_m = _prompt_float("SEMI-CHORD b", "m", default=defaults["b_m"], gt=0.0)
 
-# Use loaded values as prompt defaults
-b_m = _prompt_float("SEMI-CHORD b", "m", default=_DEFAULTS["b_m"], gt=0.0)
+# Solver settings and constants are passed to the analysis call
+compute_flutter(..., k_tol_nd=defaults["k_tol_nd"], max_iter_nd=defaults["max_iter_nd"],
+                pi_nd=constants["pi_nd"])
 ```
 
 ```python

@@ -67,8 +67,15 @@ The heave and pitch stiffnesses are derived as `omega_heave^2 * mass` and
 `omega_alpha^2 * inertia`.
 
 This example has the CG ahead of the elastic axis (`x_alpha_nd < 0`), which is stable: it
-correctly reports no flutter up to 50 m/s. The interactive defaults (`a = -0.2`,
-`x_a = 0.1`, `omega_h = 10`, `omega_a = 25` rad/s, 10 kg, 0.5 kg m2) flutter at 19.39 m/s.
+correctly reports no flutter up to 50 m/s.
+
+## Defaults
+
+The interactive prompts are pre-filled from `defaults/default_flutter.json` (same keys as an
+input file, plus the solver settings `k_tol_nd` and `max_iter_nd`); `pi_nd` comes from
+`defaults/constants.json`. Edit those files to change the defaults; both are bundled into the
+executable. The shipped defaults (`a = -0.2`, `x_a = 0.1`, `omega_h = 10`, `omega_a = 25`
+rad/s, 10 kg, 0.5 kg m2, 1-100 m/s) flutter at 19.39 m/s.
 
 ## Output
 
