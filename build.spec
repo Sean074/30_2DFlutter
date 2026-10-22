@@ -11,8 +11,6 @@ a = Analysis(
     datas=[],
     hiddenimports=[
         "numpy",
-        "scipy",
-        "scipy.special._cython_special",
         "matplotlib",
         "matplotlib.backends.backend_tkagg",
         "matplotlib.backends.backend_agg",

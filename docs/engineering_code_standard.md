@@ -377,7 +377,6 @@ Pin exact versions for reproducibility. Minimum required packages:
 
 ```
 numpy==2.2.4
-scipy==1.15.2
 matplotlib==3.10.1
 pytest==8.3.5
 black==25.1.0
