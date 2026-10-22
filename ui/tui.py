@@ -11,6 +11,7 @@ from analysis.flutter import (
     build_mass_matrix,
     build_stiffness_matrix,
     compute_flutter,
+    compute_structural_frequencies,
 )
 from file_io.loader import load_json
 from file_io.exporter import save_flutter_results
@@ -309,27 +310,22 @@ def _solve_modes(
     )
     stiffness_matrix_n_m = build_stiffness_matrix(k_heave_n_m, k_alpha_nm_rad)
 
-    modes = {
-        f"HEAVE ({data['omega_heave_rad_s']:.2f} rad/s)": data["omega_heave_rad_s"],
-        f"PITCH ({data['omega_alpha_rad_s']:.2f} rad/s)": data["omega_alpha_rad_s"],
+    omega_arr_rad_s = compute_structural_frequencies(mass_matrix_kg, stiffness_matrix_n_m)
+    print(f"  Solving {len(omega_arr_rad_s)} modes ...", end="", flush=True)
+    p_arr_modes = compute_flutter(
+        mass_matrix_kg=mass_matrix_kg,
+        stiffness_matrix_n_m=stiffness_matrix_n_m,
+        velocity_range_m_s=velocity_range_m_s,
+        rho_kg_m3=data["rho_kg_m3"],
+        b_m=b_m,
+        a_h_nd=data["a_h_nd"],
+    )
+    print(" done")
+
+    return {
+        f"MODE {idx} ({omega_rad_s:.2f} rad/s)": p_arr_modes[idx - 1]
+        for idx, omega_rad_s in enumerate(omega_arr_rad_s, start=1)
     }
-
-    flutter_p_modes: dict[str, np.ndarray] = {}
-    n_modes = len(modes)
-    for idx, (label, omega_rad_s) in enumerate(modes.items(), start=1):
-        print(f"  Mode {idx} of {n_modes} : {label} ...", end="", flush=True)
-        flutter_p_modes[label] = compute_flutter(
-            mass_matrix_kg=mass_matrix_kg,
-            stiffness_matrix_n_m=stiffness_matrix_n_m,
-            velocity_range_m_s=velocity_range_m_s,
-            rho_kg_m3=data["rho_kg_m3"],
-            b_m=b_m,
-            a_h_nd=data["a_h_nd"],
-            start_omega_rad_s=omega_rad_s,
-        )
-        print(" done")
-
-    return flutter_p_modes
 
 
 def _stage3_output(data: dict) -> tuple[dict[str, np.ndarray], np.ndarray] | None:
@@ -393,11 +389,10 @@ def _stage4_summary(
                 flutter_speed_m_s = v1 + (0.0 - g1) * (v2 - v1) / (g2 - g1)
                 break
 
-        short = lbl.split(" ")[0]
         if flutter_speed_m_s is not None:
             print(f"  {('FLUTTER DETECTED (MODE ' + str(i) + ')'):<28}: {_GREEN}YES{_R}")
             speed_str = f"{flutter_speed_m_s:.2f} m/s"
-            print(f"  {('FLUTTER SPEED (MODE ' + str(i) + ')'):<28}: {_CYAN}{speed_str:<16}{_R}  ({short}, g=0 crossing)")
+            print(f"  {('FLUTTER SPEED (MODE ' + str(i) + ')'):<28}: {_CYAN}{speed_str:<16}{_R}  (g=0 crossing)")
         else:
             print(f"  {('FLUTTER DETECTED (MODE ' + str(i) + ')'):<28}: NO")
 

@@ -1,4 +1,4 @@
-"""p-k flutter analysis: matrix builders and secant-method solver."""
+"""p-k flutter analysis: matrix builders and eigenvalue-tracking p-k solver."""
 from __future__ import annotations
 
 import numpy as np
@@ -116,6 +116,75 @@ def build_stiffness_matrix(
     )
 
 
+def compute_structural_frequencies(
+    mass_matrix_kg: NDArray[np.float64],
+    stiffness_matrix_n_m: NDArray[np.float64],
+) -> NDArray[np.float64]:
+    """
+    Compute the coupled in-vacuo natural frequencies of the section.
+
+    Parameters
+    ----------
+    mass_matrix_kg : NDArray[np.float64], shape (2, 2)
+        Generalised structural mass matrix.
+    stiffness_matrix_n_m : NDArray[np.float64], shape (2, 2)
+        Structural stiffness matrix.
+
+    Returns
+    -------
+    NDArray[np.float64], shape (2,)
+        Natural frequencies in rad/s, ascending.
+
+    Raises
+    ------
+    ValueError
+        If the mass or stiffness matrix is not positive definite.
+    """
+    for name, mat in (("mass", mass_matrix_kg), ("stiffness", stiffness_matrix_n_m)):
+        if np.any(np.linalg.eigvalsh(mat) <= 0.0):
+            raise ValueError(
+                f"{name} matrix is not positive definite; check mass, inertia and CG offset"
+            )
+    omega_sq_arr = np.linalg.eigvals(np.linalg.solve(mass_matrix_kg, stiffness_matrix_n_m))
+    return np.sort(np.sqrt(np.real(omega_sq_arr)))
+
+
+def _solve_mode_at_speed(
+    mass_matrix_kg: NDArray[np.float64],
+    stiffness_matrix_n_m: NDArray[np.float64],
+    v_m_s: float,
+    rho_kg_m3: float,
+    b_m: float,
+    a_h_nd: float,
+    p_guess_nd: complex,
+    k_tol_nd: float,
+    max_iter_nd: int,
+    pi_nd: float,
+) -> complex:
+    """Iterate k = imag(p) to convergence, following the eigenvalue nearest p_guess_nd."""
+    p_nd = p_guess_nd
+    for _ in range(max_iter_nd):
+        k_nd = np.imag(p_nd)
+        if k_nd <= 0.0:
+            raise ValueError(
+                f"reduced frequency fell to zero at V = {v_m_s:.3f} m/s "
+                "(static divergence); reduce the maximum velocity"
+            )
+        aero_matrix = build_aero_matrix(k_nd, theo_c(k_nd), b_m, a_h_nd)
+        q_matrix = stiffness_matrix_n_m - rho_kg_m3 * pi_nd * b_m * v_m_s**2 * aero_matrix
+        # (V/b)^2 p^2 M + Q = 0  ->  p^2 = -(b/V)^2 eig(M^-1 Q); keep the oscillatory root.
+        p_sq_arr = -((b_m / v_m_s) ** 2) * np.linalg.eigvals(
+            np.linalg.solve(mass_matrix_kg, q_matrix)
+        )
+        root_arr = np.sqrt(p_sq_arr.astype(np.complex128))
+        root_arr = np.where(np.imag(root_arr) < 0.0, -root_arr, root_arr)
+        p_new_nd = complex(root_arr[np.argmin(np.abs(root_arr - p_nd))])
+        if abs(np.imag(p_new_nd) - k_nd) <= k_tol_nd * abs(np.imag(p_new_nd)):
+            return p_new_nd
+        p_nd = p_new_nd
+    raise ValueError(f"p-k iteration did not converge at V = {v_m_s:.3f} m/s")
+
+
 def compute_flutter(
     mass_matrix_kg: NDArray[np.float64],
     stiffness_matrix_n_m: NDArray[np.float64],
@@ -123,14 +192,17 @@ def compute_flutter(
     rho_kg_m3: float,
     b_m: float,
     a_h_nd: float,
-    start_omega_rad_s: float,
-    det_tol_nd: float = 0.001,
-    p_init_damp_1_nd: float = 0.0,
-    p_init_damp_2_nd: float = 0.01,
+    k_tol_nd: float = 1e-10,
+    max_iter_nd: int = 200,
     pi_nd: float = 3.141592653589793,
 ) -> NDArray[np.complex128]:
     """
-    Compute p-k flutter eigenvalues over a velocity sweep using the secant method.
+    Compute p-k flutter eigenvalues for every structural mode over a velocity sweep.
+
+    At each speed and for each mode, the eigenvalues of F(p) = (V/b)^2 p^2 M + K - rho pi b V^2 A(k)
+    are found for fixed k, the root nearest the mode's current estimate is kept, and k = imag(p)
+    is updated until it converges. Modes are seeded from the coupled structural frequencies and
+    each speed is seeded by linear extrapolation from the previous two, which keeps mode identity.
 
     Parameters
     ----------
@@ -139,78 +211,79 @@ def compute_flutter(
     stiffness_matrix_n_m : NDArray[np.float64], shape (2, 2)
         Structural stiffness matrix in N/m (or N·m/rad on pitch diagonal).
     velocity_range_m_s : NDArray[np.float64], shape (nv,)
-        Velocity sweep points in m/s. Must be monotonically increasing.
+        Velocity sweep points in m/s. Must be positive and strictly increasing.
     rho_kg_m3 : float
         Air density in kg/m³.
     b_m : float
         Semi-chord length in metres.
     a_h_nd : float
         Elastic axis location aft of semi-chord mid-point (dimensionless).
-    start_omega_rad_s : float
-        Initial frequency estimate for this mode in rad/s.
-    det_tol_nd : float
-        Convergence tolerance on |det(F)|; iteration stops when below this value.
-    p_init_damp_1_nd : float
-        Damping scale for first secant seed: real(p_1) = p_init_damp_1_nd * k.
-    p_init_damp_2_nd : float
-        Damping scale for second secant seed: real(p_2) = p_init_damp_2_nd * k.
+    k_tol_nd : float
+        Relative convergence tolerance on the reduced frequency k = imag(p).
+    max_iter_nd : int
+        Maximum p-k iterations per mode per speed.
     pi_nd : float
         Mathematical constant π, loaded from defaults/constants.json.
 
     Returns
     -------
-    NDArray[np.complex128], shape (nv,)
-        Complex p values per speed: real(p) = damping (1/s), imag(p) = frequency (rad/s).
+    NDArray[np.complex128], shape (n_modes, nv)
+        Complex p per mode and speed, modes ordered by ascending structural frequency
+        (see `compute_structural_frequencies`): real(p) = decay rate, imag(p) = reduced
+        frequency k, so the physical frequency is imag(p) * V / b in rad/s.
 
     Raises
     ------
     ValueError
-        If velocity_range_m_s is empty or non-positive.
+        If the velocity sweep is empty, non-positive or not increasing, the matrices are not
+        positive definite, the iteration fails to converge, or two modes collapse onto one root.
     """
     if len(velocity_range_m_s) == 0:
         raise ValueError("velocity_range_m_s must not be empty")
     if velocity_range_m_s[0] <= 0:
         raise ValueError(f"velocity_range_m_s must be positive; got {velocity_range_m_s[0]}")
+    if np.any(np.diff(velocity_range_m_s) <= 0):
+        raise ValueError("velocity_range_m_s must be strictly increasing")
 
-    speed_inc_m_s = velocity_range_m_s[1] - velocity_range_m_s[0]
-
-    k_2 = start_omega_rad_s * b_m / velocity_range_m_s[0]
-    k_1 = k_2
-    p_1 = complex(p_init_damp_1_nd * k_2, k_2)
-    p_2 = complex(p_init_damp_2_nd * k_2, k_2)
-
-    flutter_p = np.empty(len(velocity_range_m_s), dtype=np.complex128)
+    omega_arr_rad_s = compute_structural_frequencies(mass_matrix_kg, stiffness_matrix_n_m)
+    n_modes = len(omega_arr_rad_s)
+    # Track s = p V / b (rad/s, complex): it varies smoothly with V, unlike p itself.
+    s_arr_rad_s = np.empty((n_modes, len(velocity_range_m_s)), dtype=np.complex128)
 
     for i, v_m_s in enumerate(velocity_range_m_s):
-        converged = False
-
-        while not converged:
-            c_1 = theo_c(k_1)
-            a1 = build_aero_matrix(k_1, c_1, b_m, a_h_nd)
-            f_1 = (v_m_s / b_m) ** 2 * p_1**2 * mass_matrix_kg + stiffness_matrix_n_m - rho_kg_m3 * pi_nd * b_m * v_m_s**2 * a1
-            det_f1 = np.linalg.det(f_1)
-
-            c_2 = theo_c(k_2)
-            a2 = build_aero_matrix(k_2, c_2, b_m, a_h_nd)
-            f_2 = (v_m_s / b_m) ** 2 * p_2**2 * mass_matrix_kg + stiffness_matrix_n_m - rho_kg_m3 * pi_nd * b_m * v_m_s**2 * a2
-            det_f2 = np.linalg.det(f_2)
-
-            p_3 = (p_2 * det_f1 - p_1 * det_f2) / (det_f1 - det_f2)
-
-            k_3 = np.imag(p_3)
-            c_3 = theo_c(k_3)
-            a3 = build_aero_matrix(k_3, c_3, b_m, a_h_nd)
-            f_3 = (v_m_s / b_m) ** 2 * p_3**2 * mass_matrix_kg + stiffness_matrix_n_m - rho_kg_m3 * pi_nd * b_m * v_m_s**2 * a3
-            det_f3 = np.linalg.det(f_3)
-
-            if abs(det_f3) <= det_tol_nd:
-                converged = True
+        for mode in range(n_modes):
+            if i == 0:
+                s_guess_rad_s = 1j * omega_arr_rad_s[mode]
+            elif i == 1:
+                s_guess_rad_s = s_arr_rad_s[mode, 0]
             else:
-                p_1, p_2 = p_2, p_3
-                k_1, k_2 = np.imag(p_1), np.imag(p_2)
+                dv_ratio = (v_m_s - velocity_range_m_s[i - 1]) / (
+                    velocity_range_m_s[i - 1] - velocity_range_m_s[i - 2]
+                )
+                s_guess_rad_s = s_arr_rad_s[mode, i - 1] + dv_ratio * (
+                    s_arr_rad_s[mode, i - 1] - s_arr_rad_s[mode, i - 2]
+                )
+            p_nd = _solve_mode_at_speed(
+                mass_matrix_kg,
+                stiffness_matrix_n_m,
+                v_m_s,
+                rho_kg_m3,
+                b_m,
+                a_h_nd,
+                s_guess_rad_s * b_m / v_m_s,
+                k_tol_nd,
+                max_iter_nd,
+                pi_nd,
+            )
+            s_arr_rad_s[mode, i] = p_nd * v_m_s / b_m
 
-        flutter_p[i] = p_3
-        p_1 = p_1 * v_m_s / (v_m_s + speed_inc_m_s)
-        p_2 = p_2 * v_m_s / (v_m_s + speed_inc_m_s)
+        s_col = s_arr_rad_s[:, i]
+        gap_arr_rad_s = np.abs(s_col[:, None] - s_col[None, :])
+        np.fill_diagonal(gap_arr_rad_s, np.inf)
+        if np.min(gap_arr_rad_s) <= 1e-6 * np.max(np.abs(s_col)):
+            raise ValueError(
+                f"modes collapsed onto one root at V = {v_m_s:.3f} m/s; "
+                "increase the number of velocity points"
+            )
 
-    return flutter_p
+    return s_arr_rad_s * b_m / velocity_range_m_s[None, :]

@@ -9,7 +9,6 @@
   "omega_heave_rad_s": 20.0,
   "rho_kg_m3": 1.21,
   "velocity_range_m_s": [0.01, 50.0, 4990],
-  "det_tol_nd": 0.001,
-  "p_init_damp_1_nd": -0.01,
-  "p_init_damp_2_nd": 0.0
+  "k_tol_nd": 1e-10,
+  "max_iter_nd": 200
 }

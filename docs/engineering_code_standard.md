@@ -83,7 +83,7 @@ This applies to:
 - Default input values shown as prompts in the TUI (e.g. default semi-chord, default air density)
 - Mathematical constants (π)
 - Physical constants (standard gravity, sea-level ISA density, speed of sound)
-- Solver parameters: convergence tolerances, iteration limits, and numerical seed values (e.g. `det_tol_nd`, `p_init_damp_1_nd`)
+- Solver parameters: convergence tolerances, iteration limits, and iteration limits (e.g. `k_tol_nd`, `max_iter_nd`)
 - Any value that would otherwise appear as a bare numeric literal in analysis or UI code
 
 ### `defaults/constants.json`
@@ -117,13 +117,12 @@ Stores default parameter values for the p-k flutter analysis. This includes **al
   "omega_heave_rad_s": 20.0,
   "rho_kg_m3": 1.21,
   "velocity_range_m_s": [0.01, 50.0, 4990],
-  "det_tol_nd": 0.001,
-  "p_init_damp_1_nd": -0.01,
-  "p_init_damp_2_nd": 0.0
+  "k_tol_nd": 1e-10,
+  "max_iter_nd": 200
 }
 ```
 
-`det_tol_nd` is the secant-method convergence tolerance on `|det(F)|`. `p_init_damp_1_nd` and `p_init_damp_2_nd` are the damping scale factors for the two initial secant seeds: `real(p) = p_init_damp_*_nd * k`.
+`k_tol_nd` is the relative convergence tolerance on the reduced frequency `k = imag(p)` in the p-k iteration. `max_iter_nd` caps the iterations per mode per speed; exceeding it raises `ValueError`.
 
 ### Loading pattern
 
