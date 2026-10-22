@@ -1,4 +1,5 @@
 """Tests for analysis/flutter.py."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -9,6 +10,7 @@ from analysis.flutter import (
     build_stiffness_matrix,
     compute_flutter,
     compute_structural_frequencies,
+    find_flutter_speed,
     theo_c,
 )
 
@@ -142,3 +144,57 @@ def test_compute_flutter_detects_flutter_speed():
     g1, g2 = g_arr_nd[1, j], g_arr_nd[1, j + 1]
     v_flutter_m_s = v1 - g1 * (v2 - v1) / (g2 - g1)
     np.testing.assert_allclose(v_flutter_m_s, 19.3934, rtol=1e-4)
+
+
+def test_find_flutter_speed_interpolates_between_grid_points():
+    """g = -0.1 at 10 m/s and +0.3 at 20 m/s crosses zero a quarter of the way: 12.5 m/s."""
+    b_m = 0.5
+    velocity_range_m_s = np.array([5.0, 10.0, 20.0, 30.0])
+    k_arr_nd = np.array([2.0, 1.0, 0.6, 0.4])
+    g_arr_nd = np.array([-0.2, -0.1, 0.3, 0.5])
+    p_arr_nd = k_arr_nd * (g_arr_nd + 1j)
+
+    v_flutter_m_s, omega_flutter_rad_s = find_flutter_speed(p_arr_nd, velocity_range_m_s, b_m)
+
+    np.testing.assert_allclose(v_flutter_m_s, 12.5, rtol=1e-4)
+    # frequency (k V / b) is 20 rad/s at 10 m/s and 24 rad/s at 20 m/s
+    np.testing.assert_allclose(omega_flutter_rad_s, 21.0, rtol=1e-4)
+
+
+def test_find_flutter_speed_returns_none_without_crossing():
+    velocity_range_m_s = np.array([5.0, 10.0, 20.0])
+    p_arr_nd = np.array([1.0, 0.8, 0.6]) * (-0.05 + 1j)
+    assert find_flutter_speed(p_arr_nd, velocity_range_m_s, 0.5) is None
+
+
+def test_compute_flutter_hodges_pierce_textbook_case():
+    """
+    Textbook two-DOF section (Hodges & Pierce, Introduction to Structural Dynamics and
+    Aeroelasticity, ch. 5): a = -1/5, e = -1/10 (x_a = 1/10), mu = 20, r^2 = 6/25,
+    sigma = w_h / w_a = 2/5. Non-dimensionalised with b = 1 m, w_a = 1 rad/s, rho = 1 kg/m3.
+
+    With the Jones approximation of C(k) the flutter point is V_F / (b w_a) = 2.15363,
+    w_F / w_a = 0.6497, confirmed by an independent k-method (g = 0) solve. With exact
+    Theodorsen the same solve gives 2.184, consistent with the book's ~2.2; the 1.4 %
+    difference is the Jones approximation.
+    """
+    b_m = 1.0
+    rho_kg_m3 = 1.0
+    omega_alpha_rad_s = 1.0
+    mass_kg = 20.0 * np.pi * rho_kg_m3 * b_m**2
+    inertia_alpha_kg_m2 = 6.0 / 25.0 * mass_kg * b_m**2
+    mass_matrix_kg = build_mass_matrix(mass_kg, inertia_alpha_kg_m2, b_m, 0.1)
+    stiffness_matrix_n_m = build_stiffness_matrix(
+        (0.4 * omega_alpha_rad_s) ** 2 * mass_kg,
+        omega_alpha_rad_s**2 * inertia_alpha_kg_m2,
+    )
+    velocity_range_m_s = np.linspace(0.01, 3.0, 600)
+
+    p_arr = compute_flutter(
+        mass_matrix_kg, stiffness_matrix_n_m, velocity_range_m_s, rho_kg_m3, b_m, a_h_nd=-0.2
+    )
+
+    assert find_flutter_speed(p_arr[0], velocity_range_m_s, b_m) is None
+    v_flutter_m_s, omega_flutter_rad_s = find_flutter_speed(p_arr[1], velocity_range_m_s, b_m)
+    np.testing.assert_allclose(v_flutter_m_s / (b_m * omega_alpha_rad_s), 2.15363, rtol=1e-4)
+    np.testing.assert_allclose(omega_flutter_rad_s / omega_alpha_rad_s, 0.6497, rtol=1e-3)

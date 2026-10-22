@@ -12,6 +12,7 @@ from analysis.flutter import (
     build_stiffness_matrix,
     compute_flutter,
     compute_structural_frequencies,
+    find_flutter_speed,
 )
 from file_io.loader import load_json
 from file_io.exporter import save_flutter_results
@@ -377,34 +378,26 @@ def _stage4_summary(
 
     mode_labels = list(flutter_p_modes.keys())
     for i, lbl in enumerate(mode_labels, start=1):
-        p_arr = flutter_p_modes[lbl]
-        im_arr = np.imag(p_arr)
-        g_arr = np.where(im_arr != 0.0, np.real(p_arr) / im_arr, 0.0)
+        flutter_point = find_flutter_speed(flutter_p_modes[lbl], velocity_range_m_s, b_m)
 
-        flutter_speed_m_s: float | None = None
-        for j in range(len(g_arr) - 1):
-            if g_arr[j] < 0 and g_arr[j + 1] >= 0:
-                v1, v2 = velocity_range_m_s[j], velocity_range_m_s[j + 1]
-                g1, g2 = g_arr[j], g_arr[j + 1]
-                flutter_speed_m_s = v1 + (0.0 - g1) * (v2 - v1) / (g2 - g1)
-                break
-
-        if flutter_speed_m_s is not None:
+        if flutter_point is not None:
+            v_flutter_m_s, omega_flutter_rad_s = flutter_point
             print(f"  {('FLUTTER DETECTED (MODE ' + str(i) + ')'):<28}: {_GREEN}YES{_R}")
-            speed_str = f"{flutter_speed_m_s:.2f} m/s"
-            print(f"  {('FLUTTER SPEED (MODE ' + str(i) + ')'):<28}: {_CYAN}{speed_str:<16}{_R}  (g=0 crossing)")
+            print(f"  {('FLUTTER SPEED (MODE ' + str(i) + ')'):<28}: "
+                  f"{_CYAN}{v_flutter_m_s:.2f} m/s{_R}  (g=0 crossing)")
+            print(f"  {('FLUTTER FREQ (MODE ' + str(i) + ')'):<28}: "
+                  f"{_CYAN}{omega_flutter_rad_s:.2f} rad/s{_R}")
         else:
             print(f"  {('FLUTTER DETECTED (MODE ' + str(i) + ')'):<28}: NO")
 
     print()
 
-    v_max_m_s = float(velocity_range_m_s[-1])
-    for lbl, p_arr in flutter_p_modes.items():
-        k_min = float(np.min(np.imag(p_arr))) * b_m / v_max_m_s
-        if k_min < 0.01:
-            print(f"  {_YELLOW}[W] Reduced frequency k < 0.01 at V > {0.8 * v_max_m_s:.0f} m/s "
-                  f"-- quasi-steady limit approached.{_R}")
-            break
+    # imag(p) is the reduced frequency k; report the lowest speed where any mode drops below 0.01.
+    k_arr_nd = np.imag(np.array(list(flutter_p_modes.values())))
+    low_k_arr = np.flatnonzero(np.any(k_arr_nd < 0.01, axis=0))
+    if len(low_k_arr) > 0:
+        print(f"  {_YELLOW}[W] Reduced frequency k < 0.01 at V >= "
+              f"{velocity_range_m_s[low_k_arr[0]]:.1f} m/s -- quasi-steady limit approached.{_R}")
 
     if save_path is not None:
         print(f"  {'PLOT SAVED':<28}: {_GREEN}{save_path}{_R}")

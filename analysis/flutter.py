@@ -1,4 +1,5 @@
 """p-k flutter analysis: matrix builders and eigenvalue-tracking p-k solver."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -287,3 +288,43 @@ def compute_flutter(
             )
 
     return s_arr_rad_s * b_m / velocity_range_m_s[None, :]
+
+
+def find_flutter_speed(
+    p_arr_nd: NDArray[np.complex128],
+    velocity_range_m_s: NDArray[np.float64],
+    b_m: float,
+) -> tuple[float, float] | None:
+    """
+    Find the first flutter onset of one mode by interpolating the g = 0 crossing.
+
+    Damping g = real(p) / imag(p). Onset is the first speed interval where g goes from
+    negative to non-negative; speed and frequency are interpolated linearly in g within it,
+    so the result does not snap to the velocity grid.
+
+    Parameters
+    ----------
+    p_arr_nd : NDArray[np.complex128], shape (nv,)
+        Complex p for one mode, as one row of `compute_flutter` output.
+    velocity_range_m_s : NDArray[np.float64], shape (nv,)
+        Velocity sweep points in m/s.
+    b_m : float
+        Semi-chord length in metres.
+
+    Returns
+    -------
+    tuple[float, float] or None
+        (flutter speed in m/s, flutter frequency in rad/s), or None if g never crosses zero.
+    """
+    g_arr_nd = np.real(p_arr_nd) / np.imag(p_arr_nd)
+    freq_arr_rad_s = np.imag(p_arr_nd) * velocity_range_m_s / b_m
+    crossing_arr = np.flatnonzero((g_arr_nd[:-1] < 0.0) & (g_arr_nd[1:] >= 0.0))
+    if len(crossing_arr) == 0:
+        return None
+    j = crossing_arr[0]
+    frac_nd = -g_arr_nd[j] / (g_arr_nd[j + 1] - g_arr_nd[j])
+    v_flutter_m_s = velocity_range_m_s[j] + frac_nd * (
+        velocity_range_m_s[j + 1] - velocity_range_m_s[j]
+    )
+    omega_flutter_rad_s = freq_arr_rad_s[j] + frac_nd * (freq_arr_rad_s[j + 1] - freq_arr_rad_s[j])
+    return float(v_flutter_m_s), float(omega_flutter_rad_s)
