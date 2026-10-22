@@ -59,11 +59,11 @@ def test_axis_limits_frequency_follows_data():
 
 
 def test_axis_limits_damping_positive_is_half_negative_and_clamped():
-    """A heavily damped mode (g = -9.4) clamps the window to [-0.5, +0.25]."""
+    """A heavily damped mode (g = -9.4) clamps the window to [-1.0, +0.5]."""
     freq_arr_rad_s = np.array([[10.0, 12.0], [25.0, 16.0]])
     g_arr_nd = np.array([[-0.01, -9.4], [-0.11, 0.248]])
     _, g_lim_nd = plots._axis_limits(freq_arr_rad_s, g_arr_nd)
-    np.testing.assert_allclose(g_lim_nd, (-0.5, 0.25), rtol=1e-4)
+    np.testing.assert_allclose(g_lim_nd, (-1.0, 0.5), rtol=1e-4)
 
 
 def test_axis_limits_damping_fits_small_data_with_minimum_window():
@@ -71,7 +71,7 @@ def test_axis_limits_damping_fits_small_data_with_minimum_window():
     _, g_lim_nd = plots._axis_limits(freq_arr_rad_s, np.array([[-0.2, -0.01]]))
     np.testing.assert_allclose(g_lim_nd, (-0.2, 0.1), rtol=1e-4)
     _, g_lim_nd = plots._axis_limits(freq_arr_rad_s, np.array([[-0.01, -0.001]]))
-    np.testing.assert_allclose(g_lim_nd, (-0.1, 0.05), rtol=1e-4)
+    np.testing.assert_allclose(g_lim_nd, (-0.2, 0.1), rtol=1e-4)
 
 
 def test_axis_limits_damping_widens_for_positive_g():
@@ -81,7 +81,7 @@ def test_axis_limits_damping_widens_for_positive_g():
 
 
 def test_plot_vg_vf_marks_flutter_speed(monkeypatch):
-    """g goes -0.1 -> +0.3 between 10 and 20 m/s: flutter at 12.5 m/s gets a legend entry."""
+    """gamma goes -0.1 -> +0.3 between 10 and 20 m/s: flutter at 12.5 m/s gets a legend entry."""
     captured = {}
     monkeypatch.setattr(plots.plt, "close", lambda fig: captured.setdefault("fig", fig))
     velocity_range_m_s = np.array([5.0, 10.0, 20.0, 30.0])

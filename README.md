@@ -102,7 +102,8 @@ root nearest the mode's current estimate is kept and k is updated until it conve
 `C(k)`. Modes are seeded from the coupled structural frequencies and extrapolated from speed
 to speed so each mode keeps its identity.
 
-Damping is `g = real(p) / imag(p)` and frequency is `imag(p) V / b`. Flutter onset is the
+Damping is the equivalent structural damping `g = 2 real(p) / imag(p)` (twice the decay-rate
+ratio `gamma`; `g = 0.03` is `gamma = 1.5 %`) and frequency is `imag(p) V / b`. Flutter onset is the
 first speed where g goes from negative to non-negative; the speed and frequency are
 interpolated linearly in g between the two bracketing sweep points, so the result does not
 snap to the grid.

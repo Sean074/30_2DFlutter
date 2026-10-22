@@ -290,6 +290,26 @@ def compute_flutter(
     return s_arr_rad_s * b_m / velocity_range_m_s[None, :]
 
 
+def damping_g_nd(p_arr_nd: NDArray[np.complex128]) -> NDArray[np.float64]:
+    """
+    Equivalent structural damping g = 2 * gamma, with gamma = real(p) / imag(p).
+
+    gamma is the p-k decay-rate ratio (sigma / omega); g = 2 * gamma is the flutter convention,
+    so g = 0.03 corresponds to gamma = 1.5 %. Both cross zero at the same speed.
+
+    Parameters
+    ----------
+    p_arr_nd : NDArray[np.complex128]
+        Complex p values, any shape.
+
+    Returns
+    -------
+    NDArray[np.float64]
+        Damping g, same shape as p_arr_nd.
+    """
+    return 2.0 * np.real(p_arr_nd) / np.imag(p_arr_nd)
+
+
 def find_flutter_speed(
     p_arr_nd: NDArray[np.complex128],
     velocity_range_m_s: NDArray[np.float64],
@@ -298,7 +318,7 @@ def find_flutter_speed(
     """
     Find the first flutter onset of one mode by interpolating the g = 0 crossing.
 
-    Damping g = real(p) / imag(p). Onset is the first speed interval where g goes from
+    Damping g = 2 real(p) / imag(p) (`damping_g_nd`). Onset is the first interval where g goes from
     negative to non-negative; speed and frequency are interpolated linearly in g within it,
     so the result does not snap to the velocity grid.
 
@@ -316,7 +336,7 @@ def find_flutter_speed(
     tuple[float, float] or None
         (flutter speed in m/s, flutter frequency in rad/s), or None if g never crosses zero.
     """
-    g_arr_nd = np.real(p_arr_nd) / np.imag(p_arr_nd)
+    g_arr_nd = damping_g_nd(p_arr_nd)
     freq_arr_rad_s = np.imag(p_arr_nd) * velocity_range_m_s / b_m
     crossing_arr = np.flatnonzero((g_arr_nd[:-1] < 0.0) & (g_arr_nd[1:] >= 0.0))
     if len(crossing_arr) == 0:

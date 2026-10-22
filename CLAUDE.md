@@ -19,7 +19,7 @@ python main.py
 
 - **`analysis/flutter.py`** — the p-k solver: `build_mass_matrix`, `build_stiffness_matrix`, `build_aero_matrix` (Theodorsen via the Jones two-pole approximation), `compute_structural_frequencies` and `compute_flutter`, which sweeps velocity and, for every mode, solves the eigenproblem of `F = (V/b)²p²M + K − ρπb V² A(k)` at fixed `k`, keeps the root nearest the mode's estimate and iterates `k = imag(p)`. Modes are seeded from the coupled structural frequencies and extrapolated speed to speed, so identity is kept; it returns shape `(n_modes, nv)` and raises if two modes collapse onto one root. `find_flutter_speed` interpolates the first g = 0 crossing of one mode (speed and frequency).
 - **`file_io/`** — `loader.py` (JSON/CSV input), `exporter.py` (results out).
-- **`plotting/plots.py`** — V-g / V-f figures: top subplot `imag(p)·V/b` (frequency, rad/s) vs V; bottom `real(p)/imag(p)` (damping `g`) vs V, with a `g = 0.03` limit line. Flutter onset is where `g` crosses zero.
+- **`plotting/plots.py`** — V-g / V-f figures: top subplot `imag(p)·V/b` (frequency, rad/s) vs V; bottom damping `g = 2·real(p)/imag(p)` (`damping_g_nd`; flutter convention, `g = 0.03` ≡ γ = 1.5 %) vs V, with a `g = 0.03` limit line. Flutter onset is where `g` crosses zero.
 - **`ui/tui.py`** — the four-stage terminal workflow; the only module that prints.
 - **`tests/`** — mirrors the source tree (`tests/test_flutter.py` ↔ `analysis/flutter.py`).
 

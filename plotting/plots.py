@@ -9,7 +9,7 @@ import numpy as np
 from matplotlib.backends import BackendFilter, backend_registry
 from numpy.typing import NDArray
 
-from analysis.flutter import find_flutter_speed
+from analysis.flutter import damping_g_nd, find_flutter_speed
 
 # A frozen (PyInstaller) build cannot rely on matplotlib's backend auto-detection, so pick the
 # first window backend that imports, falling back to Agg (file output only) if none does.
@@ -35,7 +35,7 @@ if getattr(sys, "frozen", False):
 # Damping window [-L, +L * _G_POS_TO_NEG_RATIO_ND], with L clamped to this range so the g = 0
 # crossing stays readable even when one mode is very heavily damped.
 _G_POS_TO_NEG_RATIO_ND = 0.5
-_G_NEG_LIM_RANGE_ND = (0.1, 0.5)
+_G_NEG_LIM_RANGE_ND = (0.2, 1.0)
 _FREQ_MARGIN_ND = 1.1
 
 
@@ -68,8 +68,8 @@ def plot_vg_vf(
     Produce V-f (top) and V-g (bottom) flutter diagrams.
 
     Axis limits follow the data: frequency from 0 to 1.1 x the highest modal frequency; damping
-    in a window [-L, +L/2] around g = 0, with L between 0.1 and 0.5. The flutter point of each
-    mode that flutters is marked on both plots.
+    g = 2 real(p) / imag(p) in a window [-L, +L/2] around g = 0, with L between 0.2 and 1.0.
+    The flutter point of each mode that flutters is marked on both plots.
 
     Parameters
     ----------
@@ -101,7 +101,7 @@ def plot_vg_vf(
 
     p_arr_modes = np.array(list(flutter_p_modes.values()))
     freq_arr_rad_s = np.imag(p_arr_modes) * velocity_range_m_s / b_m
-    g_arr_nd = np.real(p_arr_modes) / np.imag(p_arr_modes)
+    g_arr_nd = damping_g_nd(p_arr_modes)
     auto_freq_lim_rad_s, auto_g_lim_nd = _axis_limits(freq_arr_rad_s, g_arr_nd)
 
     ax[0].set_ylim(freq_lim_rad_s if freq_lim_rad_s is not None else auto_freq_lim_rad_s)

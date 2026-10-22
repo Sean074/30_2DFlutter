@@ -10,6 +10,7 @@ from analysis.flutter import (
     build_stiffness_matrix,
     compute_flutter,
     compute_structural_frequencies,
+    damping_g_nd,
     find_flutter_speed,
     theo_c,
 )
@@ -147,12 +148,12 @@ def test_compute_flutter_detects_flutter_speed():
 
 
 def test_find_flutter_speed_interpolates_between_grid_points():
-    """g = -0.1 at 10 m/s and +0.3 at 20 m/s crosses zero a quarter of the way: 12.5 m/s."""
+    """gamma = -0.1 at 10 m/s and +0.3 at 20 m/s crosses zero a quarter of the way: 12.5 m/s."""
     b_m = 0.5
     velocity_range_m_s = np.array([5.0, 10.0, 20.0, 30.0])
     k_arr_nd = np.array([2.0, 1.0, 0.6, 0.4])
-    g_arr_nd = np.array([-0.2, -0.1, 0.3, 0.5])
-    p_arr_nd = k_arr_nd * (g_arr_nd + 1j)
+    gamma_arr_nd = np.array([-0.2, -0.1, 0.3, 0.5])
+    p_arr_nd = k_arr_nd * (gamma_arr_nd + 1j)
 
     v_flutter_m_s, omega_flutter_rad_s = find_flutter_speed(p_arr_nd, velocity_range_m_s, b_m)
 
@@ -198,3 +199,9 @@ def test_compute_flutter_hodges_pierce_textbook_case():
     v_flutter_m_s, omega_flutter_rad_s = find_flutter_speed(p_arr[1], velocity_range_m_s, b_m)
     np.testing.assert_allclose(v_flutter_m_s / (b_m * omega_alpha_rad_s), 2.15363, rtol=1e-4)
     np.testing.assert_allclose(omega_flutter_rad_s / omega_alpha_rad_s, 0.6497, rtol=1e-3)
+
+
+def test_damping_g_nd_is_twice_decay_rate_ratio():
+    """p = k (gamma + i) with gamma = -1.5 % gives g = -0.03."""
+    p_arr_nd = np.array([0.4 * (-0.015 + 1j), 2.0 * (0.01 + 1j)])
+    np.testing.assert_allclose(damping_g_nd(p_arr_nd), [-0.03, 0.02], rtol=1e-4)

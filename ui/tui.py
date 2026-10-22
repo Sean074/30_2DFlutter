@@ -13,6 +13,7 @@ from analysis.flutter import (
     build_stiffness_matrix,
     compute_flutter,
     compute_structural_frequencies,
+    damping_g_nd,
     find_flutter_speed,
 )
 from file_io.loader import load_json
@@ -330,7 +331,7 @@ def _print_results_table(
         for lbl in mode_labels:
             p = flutter_p_modes[lbl][i]
             im = np.imag(p)
-            g_nd = np.real(p) / im if im != 0.0 else 0.0
+            g_nd = float(damping_g_nd(p)) if im != 0.0 else 0.0
             f_rad_s = im * v_m_s / b_m
             if g_nd >= 0:
                 flutter_row = True
