@@ -461,13 +461,16 @@ def _run_pk_flutter_batch(input_path: Path, save_outputs: bool) -> None:
         print(f"\n  {_GREEN}Results saved to {out_path}{_R}")
         save_path = out_path.with_suffix(".png")
 
-    plot_vg_vf(
+    plot_shown = plot_vg_vf(
         velocity_range_m_s=velocity_range_m_s,
         flutter_p_modes=flutter_p_modes,
         b_m=data["b_m"],
         speed_max_m_s=data["v_max_m_s"],
         save_path=save_path,
     )
+    if not plot_shown:
+        hint = "see the saved PNG" if save_path is not None else "the plot was not saved"
+        print(f"\n  {_YELLOW}[W] No plot window available (no GUI backend); {hint}.{_R}")
 
     _stage4_summary(flutter_p_modes, velocity_range_m_s, data["b_m"], save_path)
 
@@ -517,13 +520,16 @@ def _run_pk_flutter_interactive() -> None:
         print(f"\n  {_GREEN}Results saved to {out_path}{_R}")
         save_path = out_path.with_suffix(".png")
 
-    plot_vg_vf(
+    plot_shown = plot_vg_vf(
         velocity_range_m_s=velocity_range_m_s,
         flutter_p_modes=flutter_p_modes,
         b_m=data["b_m"],
         speed_max_m_s=data["v_max_m_s"],
         save_path=save_path,
     )
+    if not plot_shown:
+        hint = "see the saved PNG" if save_path is not None else "the plot was not saved"
+        print(f"\n  {_YELLOW}[W] No plot window available (no GUI backend); {hint}.{_R}")
 
     # Stage 4: CHECK OUTPUT
     _stage4_summary(flutter_p_modes, velocity_range_m_s, data["b_m"], save_path)

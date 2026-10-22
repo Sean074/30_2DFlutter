@@ -5,6 +5,11 @@
 
 set -e
 
+if ! python -c "import tkinter" 2>/dev/null; then
+    echo "WARNING: this Python has no tkinter. The binary will plot with the native macOS"
+    echo "         window backend instead. Install python-tk for the Tk window."
+fi
+
 pip install pyinstaller --quiet
 pyinstaller build.spec --clean --noconfirm
 

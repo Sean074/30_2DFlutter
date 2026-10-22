@@ -2,6 +2,8 @@
 # Build on Mac to get the Mac binary; build on Windows to get the Windows binary.
 # Usage: pyinstaller build.spec --clean --noconfirm
 
+import sys
+
 block_cipher = None
 
 a = Analysis(
@@ -14,6 +16,8 @@ a = Analysis(
         "matplotlib",
         "matplotlib.backends.backend_tkagg",
         "matplotlib.backends.backend_agg",
+        # Native macOS window backend: plots still show if the build Python lacks tkinter.
+        *(["matplotlib.backends.backend_macosx"] if sys.platform == "darwin" else []),
         "tkinter",
         "_tkinter",
         "analysis.flutter",

@@ -4,12 +4,30 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import matplotlib
-if getattr(sys, "frozen", False):
-    matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.backends import BackendFilter, backend_registry
 from numpy.typing import NDArray
+
+# A frozen (PyInstaller) build cannot rely on matplotlib's backend auto-detection, so pick the
+# first window backend that imports, falling back to Agg (file output only) if none does.
+_FROZEN_BACKENDS = ("TkAgg", "MacOSX") if sys.platform == "darwin" else ("TkAgg",)
+
+
+def _select_frozen_backend(candidates: tuple[str, ...]) -> str:
+    """Switch to the first backend in candidates that imports; Agg if none. Returns its name."""
+    for name in candidates:
+        try:
+            plt.switch_backend(name)
+            return name
+        except ImportError:
+            continue
+    plt.switch_backend("Agg")
+    return "Agg"
+
+
+if getattr(sys, "frozen", False):
+    _select_frozen_backend(_FROZEN_BACKENDS)
 
 
 def plot_vg_vf(
@@ -18,7 +36,7 @@ def plot_vg_vf(
     b_m: float,
     speed_max_m_s: float,
     save_path: str | Path | None = None,
-) -> None:
+) -> bool:
     """
     Produce V-f (top) and V-g (bottom) flutter diagrams.
 
@@ -34,6 +52,12 @@ def plot_vg_vf(
         Upper x-axis limit in m/s.
     save_path : str, Path, or None
         If provided, save the figure to this path at 150 dpi.
+
+    Returns
+    -------
+    bool
+        True if the figure was shown in a window; False if the active matplotlib backend is
+        non-interactive (e.g. Agg when no display or GUI toolkit is available).
     """
     fig, ax = plt.subplots(2, 1, figsize=(9, 7))
 
@@ -67,4 +91,9 @@ def plot_vg_vf(
     if save_path is not None:
         fig.savefig(save_path, dpi=150)
 
+    non_interactive = backend_registry.list_builtin(BackendFilter.NON_INTERACTIVE)
+    if plt.get_backend().lower() in (name.lower() for name in non_interactive):
+        plt.close(fig)
+        return False
     plt.show()
+    return True
