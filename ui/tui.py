@@ -465,7 +465,6 @@ def _run_pk_flutter_batch(input_path: Path, save_outputs: bool) -> None:
         velocity_range_m_s=velocity_range_m_s,
         flutter_p_modes=flutter_p_modes,
         b_m=data["b_m"],
-        speed_max_m_s=data["v_max_m_s"],
         save_path=save_path,
     )
     if not plot_shown:
@@ -524,7 +523,6 @@ def _run_pk_flutter_interactive() -> None:
         velocity_range_m_s=velocity_range_m_s,
         flutter_p_modes=flutter_p_modes,
         b_m=data["b_m"],
-        speed_max_m_s=data["v_max_m_s"],
         save_path=save_path,
     )
     if not plot_shown:
