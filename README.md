@@ -113,6 +113,8 @@ converge, if two modes collapse onto one root (refine the sweep), or if a mode's
 reaches zero (static divergence; lower the maximum speed). A warning is printed when the
 reduced frequency drops below 0.01, where the quasi-steady limit is approached.
 
+Full derivation, the old and new solvers, and verification: [docs/theory_pk_flutter.md](docs/theory_pk_flutter.md).
+
 ### Verification
 
 The textbook section of Hodges & Pierce, *Introduction to Structural Dynamics and
@@ -147,7 +149,7 @@ ui/tui.py            four-stage terminal workflow and batch mode
 defaults/            default values and constants (JSON)
 data/inputs/         example input files
 tests/               pytest, mirrors the source tree
-docs/                engineering code standard and TUI style guide
+docs/                theory (theory_pk_flutter.md + figures/), code standard, TUI guide
 ```
 
 Code conventions are in `docs/engineering_code_standard.md` and `docs/user_interface.md`.
