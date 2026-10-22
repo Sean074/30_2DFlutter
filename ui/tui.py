@@ -16,6 +16,7 @@ from analysis.flutter import (
     damping_g_nd,
     find_flutter_speed,
 )
+from analysis.k_method import compute_flutter_k
 from file_io.loader import load_json
 from file_io.exporter import save_flutter_results
 from plotting.plots import plot_vg_vf
@@ -45,7 +46,12 @@ _DEFAULT_KEYS = (
     "velocity_range_m_s",
     "k_tol_nd",
     "max_iter_nd",
+    "method",
+    "n_k_nd",
 )
+
+# Selectable solvers: input-file / prompt code -> display name.
+_METHODS = {"pk": "p-k METHOD", "k": "k METHOD"}
 
 
 def _load_defaults(defaults_dir: Path = _DEFAULTS_DIR) -> tuple[dict, dict]:
@@ -57,7 +63,15 @@ def _load_defaults(defaults_dir: Path = _DEFAULTS_DIR) -> tuple[dict, dict]:
         missing.append("pi_nd")
     if missing:
         raise ValueError(f"missing keys in {defaults_dir}: {', '.join(missing)}")
+    _check_method(defaults["method"])
     return defaults, constants
+
+
+def _check_method(method: str) -> str:
+    """Return method if it is a known solver code; ValueError otherwise."""
+    if method not in _METHODS:
+        raise ValueError(f"unknown method '{method}'; use one of {', '.join(_METHODS)}")
+    return method
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +151,18 @@ def _prompt_float(
         return val
 
 
+def _prompt_choice(label: str, choices: tuple[str, ...], default: str) -> str | None:
+    """Prompt for one of choices (case-insensitive). Returns None on quit."""
+    padded = f"  {label + ' [' + '/'.join(choices) + ']':<28}"
+    while True:
+        raw = _prompt(padded, default)
+        if raw is None:
+            return None
+        if raw.lower() in choices:
+            return raw.lower()
+        print(f"{_RED}  [E] INVALID INPUT: enter one of {', '.join(choices)}. Re-enter.{_R}")
+
+
 def _confirm(prompt: str, default: bool = True) -> bool | None:
     """Y/n prompt. Returns None on quit."""
     hint = "[Y/n]" if default else "[y/N]"
@@ -165,11 +191,18 @@ def _confirm(prompt: str, default: bool = True) -> bool | None:
 def _stage1_input(defaults: dict) -> dict | None:
     """Collect all input parameters interactively, pre-filled from defaults. None on quit."""
     print()
-    _header("INPUT", "p-k METHOD")
+    _header("INPUT")
     print()
 
     v_min_default_m_s, v_max_default_m_s, n_pts_default = defaults["velocity_range_m_s"]
 
+    print(f"{_WHITE_B}  SOLVER{_R}")
+    _minor()
+    method = _prompt_choice("METHOD", tuple(_METHODS), defaults["method"])
+    if method is None:
+        return None
+
+    print()
     print(f"{_WHITE_B}  GEOMETRY{_R}")
     _minor()
     b_m = _prompt_float("SEMI-CHORD b", "m", default=defaults["b_m"], gt=0.0)
@@ -235,6 +268,7 @@ def _stage1_input(defaults: dict) -> dict | None:
         return None
 
     return {
+        "method": method,
         "b_m": b_m,
         "a_h_nd": a_h_nd,
         "x_alpha_nd": x_alpha_nd,
@@ -263,6 +297,11 @@ def _stage2_check(data: dict) -> bool | None:
         label_str = f"{label} [{unit}]" if unit else label
         print(f"  {label_str:<28}: {val:.4f}")
 
+    print(f"{_WHITE_B}  SOLVER{_R}")
+    _minor()
+    print(f"  {'METHOD':<28}: {_METHODS[data['method']]}")
+
+    print()
     print(f"{_WHITE_B}  GEOMETRY{_R}")
     _minor()
     _row("SEMI-CHORD b", "m", data["b_m"])
@@ -330,6 +369,10 @@ def _print_results_table(
         row = f"  {v_m_s:>{col_w}.3f}"
         for lbl in mode_labels:
             p = flutter_p_modes[lbl][i]
+            if np.isnan(p):
+                # k-method branch does not reach this speed.
+                row += f"    {'-':>{col_w}}    {'-':>{col_w}}"
+                continue
             im = np.imag(p)
             g_nd = float(damping_g_nd(p)) if im != 0.0 else 0.0
             f_rad_s = im * v_m_s / b_m
@@ -344,7 +387,7 @@ def _solve_modes(
     velocity_range_m_s: np.ndarray,
     solver: dict,
 ) -> dict[str, np.ndarray]:
-    """Build matrices, solve p-k for each mode, print progress. Returns flutter_p_modes."""
+    """Build matrices, run the chosen solver, print progress. Returns flutter_p_modes."""
     b_m = data["b_m"]
     k_alpha_nm_rad = data["omega_alpha_rad_s"] ** 2 * data["inertia_alpha_kg_m2"]
     k_heave_n_m = data["omega_heave_rad_s"] ** 2 * data["mass_kg"]
@@ -356,17 +399,21 @@ def _solve_modes(
 
     omega_arr_rad_s = compute_structural_frequencies(mass_matrix_kg, stiffness_matrix_n_m)
     print(f"  Solving {len(omega_arr_rad_s)} modes ...", end="", flush=True)
-    p_arr_modes = compute_flutter(
-        mass_matrix_kg=mass_matrix_kg,
-        stiffness_matrix_n_m=stiffness_matrix_n_m,
-        velocity_range_m_s=velocity_range_m_s,
-        rho_kg_m3=data["rho_kg_m3"],
-        b_m=b_m,
-        a_h_nd=data["a_h_nd"],
-        k_tol_nd=solver["k_tol_nd"],
-        max_iter_nd=solver["max_iter_nd"],
-        pi_nd=solver["pi_nd"],
-    )
+    common = {
+        "mass_matrix_kg": mass_matrix_kg,
+        "stiffness_matrix_n_m": stiffness_matrix_n_m,
+        "velocity_range_m_s": velocity_range_m_s,
+        "rho_kg_m3": data["rho_kg_m3"],
+        "b_m": b_m,
+        "a_h_nd": data["a_h_nd"],
+        "pi_nd": solver["pi_nd"],
+    }
+    if data["method"] == "k":
+        p_arr_modes = compute_flutter_k(**common, n_k_nd=solver["n_k_nd"])
+    else:
+        p_arr_modes = compute_flutter(
+            **common, k_tol_nd=solver["k_tol_nd"], max_iter_nd=solver["max_iter_nd"]
+        )
     print(" done")
 
     return {
@@ -383,7 +430,7 @@ def _stage3_output(data: dict, solver: dict) -> tuple[dict[str, np.ndarray], np.
     velocity_range_m_s = np.linspace(v_min_m_s, v_max_m_s, n_pts)
 
     print()
-    _header("RUNNING ANALYSIS")
+    _header("RUNNING ANALYSIS", _METHODS[data["method"]])
     print()
     print(f"  Velocity sweep : {v_min_m_s:.1f} to {v_max_m_s:.1f} m/s  ({n_pts} steps)")
     print()
@@ -416,6 +463,7 @@ def _stage4_summary(
     velocity_range_m_s: np.ndarray,
     b_m: float,
     save_path: Path | None,
+    method: str = "pk",
 ) -> None:
     """Print analysis summary, flutter speed estimates, and warnings."""
     print()
@@ -445,6 +493,17 @@ def _stage4_summary(
         print(f"  {_YELLOW}[W] Reduced frequency k < 0.01 at V >= "
               f"{velocity_range_m_s[low_k_arr[0]]:.1f} m/s -- quasi-steady limit approached.{_R}")
 
+    if method == "k":
+        print(f"  {_YELLOW}[W] k-method g is the damping required for neutral motion; only "
+              f"g = 0 is physical.{_R}")
+        for i, lbl in enumerate(mode_labels, start=1):
+            known_arr = np.flatnonzero(~np.isnan(flutter_p_modes[lbl]))
+            if len(known_arr) == 0:
+                print(f"  {_YELLOW}[W] MODE {i} not found in the velocity range.{_R}")
+            elif known_arr[-1] < len(velocity_range_m_s) - 1:
+                print(f"  {_YELLOW}[W] MODE {i} branch ends at V = "
+                      f"{velocity_range_m_s[known_arr[-1]]:.1f} m/s (V(k) folds back).{_R}")
+
     if save_path is not None:
         print(f"  {'PLOT SAVED':<28}: {_GREEN}{save_path}{_R}")
 
@@ -462,6 +521,7 @@ def _run_pk_flutter_batch(input_path: Path, save_outputs: bool, solver: dict) ->
 
     v_min, v_max, n_pts = raw["velocity_range_m_s"]
     data = {
+        "method": _check_method(raw.get("method", "pk")),
         "b_m": float(raw["b_m"]),
         "a_h_nd": float(raw["a_h_nd"]),
         "x_alpha_nd": float(raw["x_alpha_nd"]),
@@ -478,7 +538,7 @@ def _run_pk_flutter_batch(input_path: Path, save_outputs: bool, solver: dict) ->
     velocity_range_m_s = np.linspace(data["v_min_m_s"], data["v_max_m_s"], data["n_pts"])
 
     print()
-    _header("RUNNING ANALYSIS", "BATCH MODE")
+    _header("RUNNING ANALYSIS", f"BATCH MODE  {_METHODS[data['method']]}")
     print()
     print(f"  Input          : {input_path}")
     print(f"  Velocity sweep : {data['v_min_m_s']:.1f} to {data['v_max_m_s']:.1f} m/s"
@@ -503,6 +563,7 @@ def _run_pk_flutter_batch(input_path: Path, save_outputs: bool, solver: dict) ->
             velocity_range_m_s=velocity_range_m_s,
             flutter_p_modes=flutter_p_modes,
             input_path=str(input_path),
+            method=data["method"],
         )
         print(f"\n  {_GREEN}Results saved to {out_path}{_R}")
         save_path = out_path.with_suffix(".png")
@@ -512,18 +573,21 @@ def _run_pk_flutter_batch(input_path: Path, save_outputs: bool, solver: dict) ->
         flutter_p_modes=flutter_p_modes,
         b_m=data["b_m"],
         save_path=save_path,
+        title=f"Flutter V-g / V-f ({_METHODS[data['method']]})",
     )
     if not plot_shown:
         hint = "see the saved PNG" if save_path is not None else "the plot was not saved"
         print(f"\n  {_YELLOW}[W] No plot window available (no GUI backend); {hint}.{_R}")
 
-    _stage4_summary(flutter_p_modes, velocity_range_m_s, data["b_m"], save_path)
+    _stage4_summary(
+        flutter_p_modes, velocity_range_m_s, data["b_m"], save_path, data["method"]
+    )
 
 
 def _run_pk_flutter_interactive(defaults: dict, solver: dict) -> None:
     """Run the full 4-stage interactive workflow."""
     print()
-    _header("2D AEROELASTIC FLUTTER ANALYSIS", "p-k METHOD")
+    _header("2D AEROELASTIC FLUTTER ANALYSIS", "p-k / k METHOD")
     print()
     print("  Type q at any prompt to quit.")
     print()
@@ -561,6 +625,7 @@ def _run_pk_flutter_interactive(defaults: dict, solver: dict) -> None:
             velocity_range_m_s=velocity_range_m_s,
             flutter_p_modes=flutter_p_modes,
             input_path="interactive",
+            method=data["method"],
         )
         print(f"\n  {_GREEN}Results saved to {out_path}{_R}")
         save_path = out_path.with_suffix(".png")
@@ -570,13 +635,16 @@ def _run_pk_flutter_interactive(defaults: dict, solver: dict) -> None:
         flutter_p_modes=flutter_p_modes,
         b_m=data["b_m"],
         save_path=save_path,
+        title=f"Flutter V-g / V-f ({_METHODS[data['method']]})",
     )
     if not plot_shown:
         hint = "see the saved PNG" if save_path is not None else "the plot was not saved"
         print(f"\n  {_YELLOW}[W] No plot window available (no GUI backend); {hint}.{_R}")
 
     # Stage 4: CHECK OUTPUT
-    _stage4_summary(flutter_p_modes, velocity_range_m_s, data["b_m"], save_path)
+    _stage4_summary(
+        flutter_p_modes, velocity_range_m_s, data["b_m"], save_path, data["method"]
+    )
 
 
 def run_tui(args: list[str] | None = None) -> None:
@@ -604,6 +672,7 @@ def run_tui(args: list[str] | None = None) -> None:
         "k_tol_nd": float(defaults["k_tol_nd"]),
         "max_iter_nd": int(defaults["max_iter_nd"]),
         "pi_nd": float(constants["pi_nd"]),
+        "n_k_nd": int(defaults["n_k_nd"]),
     }
 
     if parsed.batch:

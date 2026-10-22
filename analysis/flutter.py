@@ -193,6 +193,28 @@ def _solve_mode_at_speed(
     raise ValueError(f"p-k iteration did not converge at V = {v_m_s:.3f} m/s")
 
 
+def validate_velocity_range(velocity_range_m_s: NDArray[np.float64]) -> None:
+    """
+    Check that a velocity sweep is non-empty, positive and strictly increasing.
+
+    Parameters
+    ----------
+    velocity_range_m_s : NDArray[np.float64], shape (nv,)
+        Velocity sweep points in m/s.
+
+    Raises
+    ------
+    ValueError
+        If any of the conditions fails.
+    """
+    if len(velocity_range_m_s) == 0:
+        raise ValueError("velocity_range_m_s must not be empty")
+    if velocity_range_m_s[0] <= 0:
+        raise ValueError(f"velocity_range_m_s must be positive; got {velocity_range_m_s[0]}")
+    if np.any(np.diff(velocity_range_m_s) <= 0):
+        raise ValueError("velocity_range_m_s must be strictly increasing")
+
+
 def compute_flutter(
     mass_matrix_kg: NDArray[np.float64],
     stiffness_matrix_n_m: NDArray[np.float64],
@@ -246,12 +268,7 @@ def compute_flutter(
         If the velocity sweep is empty, non-positive or not increasing, the matrices are not
         positive definite, the iteration fails to converge, or two modes collapse onto one root.
     """
-    if len(velocity_range_m_s) == 0:
-        raise ValueError("velocity_range_m_s must not be empty")
-    if velocity_range_m_s[0] <= 0:
-        raise ValueError(f"velocity_range_m_s must be positive; got {velocity_range_m_s[0]}")
-    if np.any(np.diff(velocity_range_m_s) <= 0):
-        raise ValueError("velocity_range_m_s must be strictly increasing")
+    validate_velocity_range(velocity_range_m_s)
 
     omega_arr_rad_s = compute_structural_frequencies(mass_matrix_kg, stiffness_matrix_n_m)
     n_modes = len(omega_arr_rad_s)

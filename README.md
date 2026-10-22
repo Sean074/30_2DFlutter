@@ -1,8 +1,9 @@
-# 2D Flutter Analysis (p-k method)
+# 2D Flutter Analysis (p-k and k methods)
 
 Flutter onset speed of a two-degree-of-freedom (heave + pitch) airfoil section in
-incompressible flow. The tool sweeps a velocity range, solves the p-k flutter equation at
-each speed for every structural mode, and reports where the damping of a mode crosses zero.
+incompressible flow. The tool sweeps a velocity range, solves the flutter equation at each
+speed for every structural mode with the p-k method (default) or the k-method, and reports
+where the damping of a mode crosses zero.
 
 It is a 1990s-style terminal program: plain ANSI text, no curses, four fixed stages
 (INPUT, CHECK INPUT, OUTPUT, CHECK OUTPUT).
@@ -40,6 +41,7 @@ JSON, SI units, keys named `<name>_<unit>`. Example (`data/inputs/default.json`)
 ```json
 {
   "schema_version": 1,
+  "method": "pk",
   "b_m": 0.5,
   "a_h_nd": 0.25,
   "x_alpha_nd": -0.5,
@@ -54,6 +56,7 @@ JSON, SI units, keys named `<name>_<unit>`. Example (`data/inputs/default.json`)
 
 | Key | Meaning |
 |---|---|
+| `method` | Solver: `"pk"` (p-k, default if omitted) or `"k"` (k-method) |
 | `b_m` | Semi-chord b [m] |
 | `a_h_nd` | Elastic axis position aft of mid-chord, in semi-chords (`a`) |
 | `x_alpha_nd` | CG position aft of the elastic axis, in semi-chords (`x_a`) |
@@ -72,19 +75,21 @@ correctly reports no flutter up to 50 m/s.
 ## Defaults
 
 The interactive prompts are pre-filled from `defaults/default_flutter.json` (same keys as an
-input file, plus the solver settings `k_tol_nd` and `max_iter_nd`); `pi_nd` comes from
+input file, plus the solver settings `k_tol_nd` and `max_iter_nd` (p-k) and `n_k_nd`
+(number of reduced frequencies in the k-method sweep)); `pi_nd` comes from
 `defaults/constants.json`. Edit those files to change the defaults; both are bundled into the
 executable. The shipped defaults (`a = -0.2`, `x_a = 0.1`, `omega_h = 10`, `omega_a = 25`
-rad/s, 10 kg, 0.5 kg m2, 1-100 m/s) flutter at 19.56 m/s.
+rad/s, 10 kg, 0.5 kg m2, 1-100 m/s, p-k method) flutter at 19.56 m/s.
 
 ## Output
 
 With saving enabled, each run writes to `data/outputs/` (git-ignored):
 
-- `pk_flutter_<UTC timestamp>.json`: `run_metadata`, the velocity sweep, and per mode the
-  real and imaginary parts of p at every speed.
-- `pk_flutter_<UTC timestamp>.png`: V-f (top) and V-g (bottom) plot at 150 dpi, with a
-  `g = 0.03` limit line.
+- `<method>_flutter_<UTC timestamp>.json` (`pk_` or `k_`): `run_metadata` (including the
+  method), the velocity sweep, and per mode the real and imaginary parts of p at every speed
+  (`null` where a k-method branch does not reach that speed).
+- `<method>_flutter_<UTC timestamp>.png`: V-f (top) and V-g (bottom) plot at 150 dpi, with
+  a `g = 0.03` limit line.
 
 Modes are labelled by their coupled in-vacuo frequency, e.g. `MODE 1 (15.43 rad/s)`.
 
@@ -99,8 +104,9 @@ For each mode and speed V the p-k equation
 is solved by fixed-point iteration on k: with k fixed it is a 2x2 eigenproblem in p; the
 root nearest the mode's current estimate is kept and k is updated until it converges.
 `A(k)` is Theodorsen's oscillatory aerodynamics with R. T. Jones' two-pole approximation of
-`C(k)` (NACA Report 681: poles at `k = 0.0455` and `0.300`). Modes are seeded from the coupled structural frequencies and extrapolated from speed
-to speed so each mode keeps its identity.
+`C(k)` (NACA Report 681: poles at `k = 0.0455` and `0.300`). Modes are seeded from the
+coupled structural frequencies and extrapolated from speed to speed so each mode keeps its
+identity.
 
 Damping is the equivalent structural damping `g = 2 real(p) / imag(p)` (twice the decay-rate
 ratio `gamma`; `g = 0.03` is `gamma = 1.5 %`) and frequency is `imag(p) V / b`. Flutter onset is the
@@ -108,7 +114,21 @@ first speed where g goes from negative to non-negative; the speed and frequency 
 interpolated linearly in g between the two bracketing sweep points, so the result does not
 snap to the grid.
 
-The solver raises an error rather than return a wrong answer if the iteration does not
+### k-method
+
+With `"method": "k"` the classical k-method is used instead (`analysis/k_method.py`). It
+adds artificial structural damping `K(1 + ig)`, sweeps the reduced frequency k and solves one
+eigenproblem per k for `Z = (1 + ig) / omega^2`, giving `omega`, `V = b omega / k` and the
+*required* damping g of each branch. The branches are interpolated onto the velocity sweep, so
+the table, plot and output look the same as for p-k. The flutter point (g = 0) is the same as
+the p-k one; elsewhere the k-method g is not physical damping and the V-g curves differ, so
+read damping margins from the p-k method. Where a branch's speed folds back (near static
+divergence) the higher speeds are left empty and a warning is printed. Details: section 7 of
+the theory document.
+
+### Errors and warnings
+
+The p-k solver raises an error rather than return a wrong answer if the iteration does not
 converge, if two modes collapse onto one root (refine the sweep), or if a mode's frequency
 reaches zero (static divergence; lower the maximum speed). A warning is printed when the
 reduced frequency drops below 0.01, where the quasi-steady limit is approached.
@@ -143,6 +163,7 @@ Both run PyInstaller on `build.spec`. Build on each platform for its own binary.
 ```
 main.py              entry point (calls ui.tui.run_tui)
 analysis/flutter.py  matrix builders, p-k solver, flutter-speed interpolation
+analysis/k_method.py k-method solver
 file_io/             loader.py (JSON / CSV in), exporter.py (results out)
 plotting/plots.py    V-g / V-f figure
 ui/tui.py            four-stage terminal workflow and batch mode

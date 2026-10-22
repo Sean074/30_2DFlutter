@@ -36,6 +36,7 @@ from analysis.flutter import (  # noqa: E402
     find_flutter_speed,
     theo_c,
 )
+from analysis.k_method import compute_flutter_k  # noqa: E402
 from plotting.plots import plot_vg_vf  # noqa: E402
 
 _OUT_DIR = Path(__file__).resolve().parent
@@ -351,6 +352,35 @@ def fig_old_vs_new(path: Path) -> None:
     plt.close(fig)
 
 
+def fig_pk_vs_k(path: Path) -> None:
+    mass, stiff, b, a, rho = _matrices(CASES["shipped_defaults"])
+    v_arr = np.linspace(0.1, 40.0, 400)
+    p_pk = compute_flutter(mass, stiff, v_arr, rho, b, a)
+    p_k = compute_flutter_k(mass, stiff, v_arr, rho, b, a)
+    v_f = find_flutter_speed(p_pk[1], v_arr, b)[0]
+
+    fig, ax = plt.subplots(2, 1, figsize=(9, 7), sharex=True)
+    for mode, colour in enumerate(("tab:blue", "tab:orange")):
+        for p, style, name in ((p_pk, "-", "p-k"), (p_k, "--", "k-method")):
+            label = f"MODE {mode + 1}, {name}"
+            ax[0].plot(v_arr, np.imag(p[mode]) * v_arr / b, style, color=colour, lw=2, label=label)
+            ax[1].plot(v_arr, damping_g_nd(p[mode]), style, color=colour, lw=2, label=label)
+    for axis in ax:
+        axis.axvline(v_f, color="k", lw=1, ls="--")
+        axis.grid(True)
+        axis.legend(fontsize=9)
+    ax[0].set_ylim(0, 28)
+    ax[1].set_ylim(-1.0, 0.5)
+    ax[1].axhline(0.0, color="k", lw=1.5)
+    ax[0].set_ylabel("Frequency [rad/s]")
+    ax[1].set_ylabel("Damping g")
+    ax[1].set_xlabel("Velocity [m/s]")
+    ax[0].set_title(f"Shipped defaults: p-k vs k-method, same flutter point V_F = {v_f:.2f} m/s")
+    fig.tight_layout()
+    fig.savefig(path, dpi=_DPI)
+    plt.close(fig)
+
+
 def fig_vg(name: str, v_max_m_s: float, path: Path) -> NDArray[np.complex128]:
     mass, stiff, b, a, rho = _matrices(CASES[name])
     v_arr = np.linspace(v_max_m_s / 600, v_max_m_s, 600)
@@ -366,6 +396,7 @@ def main() -> None:
     fig_section_geometry(_OUT_DIR / "section_geometry.png")
     fig_theodorsen(_OUT_DIR / "theodorsen_jones_vs_exact.png")
     fig_old_vs_new(_OUT_DIR / "old_vs_new_default_json.png")
+    fig_pk_vs_k(_OUT_DIR / "pk_vs_k_shipped_defaults.png")
 
     print(f"{'case':18s} {'p-k V_F':>10s} {'p-k w_F':>10s} {'k-meth V_F':>11s} "
           f"{'k-meth w_F':>11s} {'exact-C V_F':>12s}")

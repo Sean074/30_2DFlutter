@@ -13,6 +13,7 @@ from analysis.flutter import (
     damping_g_nd,
     find_flutter_speed,
     theo_c,
+    validate_velocity_range,
 )
 
 
@@ -199,6 +200,14 @@ def test_compute_flutter_hodges_pierce_textbook_case():
     v_flutter_m_s, omega_flutter_rad_s = find_flutter_speed(p_arr[1], velocity_range_m_s, b_m)
     np.testing.assert_allclose(v_flutter_m_s / (b_m * omega_alpha_rad_s), 2.17036, rtol=1e-4)
     np.testing.assert_allclose(omega_flutter_rad_s / omega_alpha_rad_s, 0.6443, rtol=1e-3)
+
+
+@pytest.mark.parametrize(
+    "velocity_range_m_s", [np.array([]), np.array([0.0, 1.0]), np.array([2.0, 1.0])]
+)
+def test_validate_velocity_range_rejects_bad_sweeps(velocity_range_m_s):
+    with pytest.raises(ValueError, match="velocity_range_m_s"):
+        validate_velocity_range(velocity_range_m_s)
 
 
 def test_damping_g_nd_is_twice_decay_rate_ratio():

@@ -63,6 +63,7 @@ def plot_vg_vf(
     save_path: str | Path | None = None,
     freq_lim_rad_s: tuple[float, float] | None = None,
     g_lim_nd: tuple[float, float] | None = None,
+    title: str = "Flutter V-g / V-f",
 ) -> bool:
     """
     Produce V-f (top) and V-g (bottom) flutter diagrams.
@@ -85,6 +86,8 @@ def plot_vg_vf(
         Frequency axis limits in rad/s, overriding the automatic ones.
     g_lim_nd : tuple[float, float] or None
         Damping axis limits, overriding the automatic ones.
+    title : str
+        Figure title.
 
     Returns
     -------
@@ -94,7 +97,7 @@ def plot_vg_vf(
     """
     fig, ax = plt.subplots(2, 1, figsize=(9, 7))
 
-    ax[0].set_title("Flutter V-g / V-f")
+    ax[0].set_title(title)
     ax[0].set_ylabel("Frequency [rad/s]")
     ax[1].set_ylabel("Structural damping g")
     ax[1].set_xlabel("Velocity [m/s]")

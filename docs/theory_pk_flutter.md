@@ -1,11 +1,12 @@
 # p-k Flutter Analysis of a Typical Section: Theory and Solver
 
-This document explains the physics and numerics behind `analysis/flutter.py`, and records
-the change of p-k solver made for issue #2 (commit `d147b89`): what the old secant solver
-did, why it failed, what replaced it, and how the result was verified.
+This document explains the physics and numerics behind `analysis/flutter.py` (p-k) and
+`analysis/k_method.py` (k-method, selectable since issue #10), and records the change of p-k
+solver made for issue #2 (commit `d147b89`): what the old secant solver did, why it failed,
+what replaced it, and how the result was verified.
 
 Figures are regenerated with `python docs/figures/make_figures.py`, which also prints the
-verification table in section 8.
+verification table in section 9.
 
 ---
 
@@ -201,7 +202,8 @@ The older **k-method** adds artificial structural damping, `K(1 + ig)`, and solv
 eigenproblem at fixed `k` for `Z = (1 + ig)/ω²`. Its `g` is the damping *required* for
 harmonic motion. It has no physical meaning away from `g = 0` and its modes are hard to
 track, but **at `g = 0` it solves exactly the same equation as the p-k method**. That makes
-it a clean independent check of the flutter point (section 8).
+it a clean independent check of the flutter point (section 9), and it is available as an
+alternative solver (section 7).
 
 ---
 
@@ -296,7 +298,61 @@ The solver raises `ValueError` instead of returning a wrong answer when:
 
 ---
 
-## 7. Comparison
+## 7. k-method solver (`analysis/k_method.py`)
+
+Selected with `"method": "k"` in the input file or `k` at the METHOD prompt; `"pk"` (the
+default) selects section 6.
+
+### Equation
+
+With harmonic motion, `p = ik`, and artificial structural damping `K(1 + ig)`, the flutter
+equation of section 4 becomes, after using `ρπbV² = ρπb³ω²/k²`,
+
+$$
+\left[ K^{-1}\left( M + \frac{\rho\pi b^3}{k^2} A(k) \right) \right] x = Z x,
+\qquad Z = \frac{1 + ig}{\omega^2}.
+$$
+
+For each `k` this is a plain eigenproblem with no iteration. Every eigenvalue gives
+
+$$
+\omega = \frac{1}{\sqrt{\operatorname{Re} Z}}, \qquad V = \frac{b\omega}{k}, \qquad
+g = \frac{\operatorname{Im} Z}{\operatorname{Re} Z}.
+$$
+
+### Sweep and branches
+
+`compute_k_branches` sweeps `k` downwards (speed upwards) and keeps each branch by matching the
+eigenvalues at one `k` to the nearest ones at the previous `k`. Branches start in ascending
+frequency, so mode numbers match the p-k solver. `compute_flutter_k` chooses the `k` range from
+the velocity range and the coupled frequencies (from `2bω_max/V_min` down to
+`0.25bω_min/V_max`, `n_k_nd` = 4000 points, geometric). It then interpolates each branch's `ω`
+and `g` linearly in `V` onto the requested velocity grid and returns them as an equivalent
+`p = k(g/2 + i)`. That has the shape and meaning of the p-k output, so the table, plot,
+exporter and `find_flutter_speed` are shared.
+
+`V(k)` is not always monotonic. Approaching static divergence, the lower branch's speed peaks
+and then falls again as `k → 0`. A branch is used from its lowest speed up to that peak; at
+higher speeds the result is NaN (`-` in the table, `null` in the JSON, a gap in the plot), and
+CHECK OUTPUT warns where the branch ends.
+
+### What the k-method g means
+
+The k-method `g` is the structural damping that would be *needed* for neutral harmonic
+motion at that speed. It is not the damping the section actually has. Only at `g = 0` is the
+motion truly harmonic, and there the equation is the p-k equation, so the two methods give
+the same flutter speed and frequency. Away from `g = 0` the V-g curves differ, and in the
+k-method the branches can behave differently from the p-k roots (here the lower branch folds
+back instead of heading towards divergence):
+
+![p-k vs k-method, shipped defaults](figures/pk_vs_k_shipped_defaults.png)
+
+Use the k-method to cross-check a flutter point. Read damping margins (the `g = 0.03` line)
+from the p-k method.
+
+---
+
+## 8. Comparison
 
 | | Old solver | New solver |
 |---|---|---|
@@ -316,12 +372,14 @@ root the two agree. The difference is robustness and keeping track of which mode
 
 ---
 
-## 8. Verification
+## 9. Verification
 
 An independent **k-method** solver, written directly from Theodorsen's `L` and `M_EA`
 (section 3) and sharing no code with `analysis/flutter.py`, is in
 `docs/figures/make_figures.py`. At `g = 0` it must agree with the p-k solver exactly
-(section 4).
+(section 4). It is kept separate from the program's own k-method (section 7), which reuses
+`build_aero_matrix` and so would not catch an error there; `tests/test_k_method.py` checks
+that one against the same flutter points.
 
 | Case | p-k `V_F` | p-k `ω_F` | k-method `V_F` | k-method `ω_F` | Exact `C(k)` `V_F` |
 |---|---|---|---|---|---|
@@ -359,10 +417,12 @@ With the CG ahead of the EA (`x_α < 0`) the section does not flutter in the ran
 | Interpolated onset | `test_find_flutter_speed_interpolates_between_grid_points` |
 | `g = 2γ` | `test_damping_g_nd_is_twice_decay_rate_ratio` |
 | `C(k) → ½` | `test_theo_c_approaches_half_at_high_k` |
+| k-method flutter point = p-k (both cases) | `tests/test_k_method.py` |
+| k-method branch ends at its fold | `test_k_method_branch_is_nan_beyond_its_fold` |
 
 ---
 
-## 9. Limitations and possible extensions
+## 10. Limitations and possible extensions
 
 - **Jones approximation.** The two-pole `C(k)` makes the flutter speed 0.1–0.6 % low in
   the verified cases. The exact Theodorsen function (Hankel functions) would remove this
@@ -376,6 +436,8 @@ With the CG ahead of the EA (`x_α < 0`) the section does not flutter in the ran
 - **Mode swaps are not detected.** The collapse check catches two modes on one root, but if
   a coarse grid near frequency coalescence lets two modes exchange identities, it is not
   reported. More velocity points avoid it.
+- **k-method branches can fold back** (`V(k)` not monotonic); speeds beyond the fold are
+  not reported for that branch (section 7).
 - **Divergence is not computed.** The solver stops with an error when `k → 0`; it does not
   report the divergence speed.
 - **Extensions:** a control-surface (third) degree of freedom, a structural damping input,
@@ -383,7 +445,7 @@ With the CG ahead of the EA (`x_α < 0`) the section does not flutter in the ran
 
 ---
 
-## 10. Nomenclature and references
+## 11. Nomenclature and references
 
 | Symbol | Meaning | Code |
 |---|---|---|
