@@ -133,7 +133,8 @@ converge, if two modes collapse onto one root (refine the sweep), or if a mode's
 reaches zero (static divergence; lower the maximum speed). A warning is printed when the
 reduced frequency drops below 0.01, where the quasi-steady limit is approached.
 
-Full derivation, the old and new solvers, and verification: [docs/theory_pk_flutter.md](docs/theory_pk_flutter.md).
+Full derivation, the old and new p-k solvers, the k-method, and verification:
+[docs/theory_pk_flutter.md](docs/theory_pk_flutter.md).
 
 ### Verification
 

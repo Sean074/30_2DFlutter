@@ -1,4 +1,4 @@
-# p-k Flutter Analysis of a Typical Section: Theory and Solver
+# p-k and k-Method Flutter Analysis of a Typical Section: Theory and Solvers
 
 This document explains the physics and numerics behind `analysis/flutter.py` (p-k) and
 `analysis/k_method.py` (k-method, selectable since issue #10), and records the change of p-k
@@ -14,15 +14,21 @@ verification table in section 9.
 
 The tool finds the **flutter speed** of a two-degree-of-freedom airfoil section (the
 "typical section"): the lowest airspeed at which one of its aeroelastic modes stops being
-damped and starts to grow. It sweeps a velocity range and, at each speed, solves the p-k
-flutter equation for every structural mode.
+damped and starts to grow. It sweeps a velocity range and, at each speed, solves the
+flutter equation for every structural mode with one of two methods:
+
+- the **p-k method** (default, `"method": "pk"`; sections 4 and 6), which gives the true
+  damping of each mode near `g = 0`;
+- the **k-method** (`"method": "k"`; section 7), which sweeps the reduced frequency and gives
+  the damping a mode would *need*. It finds the same flutter point by a non-iterative route
+  and is useful as a cross-check.
 
 Assumptions:
 
 - 2D section, rigid in its own plane, on a heave spring and a torsion spring.
 - Small motions about a zero-lift equilibrium (linear structure and aerodynamics).
 - Incompressible, inviscid, attached flow over a thin airfoil (Theodorsen's theory).
-- No structural damping in the model; damping is the *output* (section 4).
+- No structural damping in the model; damping is the *output* (sections 4 and 7).
 
 Outside this envelope (high subsonic Mach number, stall, large amplitude, 3D effects) the
 results should not be used without corrections.
@@ -350,6 +356,18 @@ back instead of heading towards divergence):
 Use the k-method to cross-check a flutter point. Read damping margins (the `g = 0.03` line)
 from the p-k method.
 
+### Failure behaviour
+
+There is no iteration to fail, so the k-method raises `ValueError` only for invalid input:
+
+- `M` or `K` not positive definite;
+- the velocity sweep empty, non-positive or not strictly increasing;
+- `n_k_nd < 2`, or (in `compute_k_branches`) a `k` sweep that is empty, non-positive or not
+  strictly decreasing.
+
+Speeds a branch does not reach are returned as NaN rather than raising. Unlike the p-k solver
+it does not stop at static divergence: the lower branch simply ends at its fold.
+
 ---
 
 ## 8. Comparison
@@ -369,6 +387,21 @@ from the p-k method.
 
 Both solve the same equation, so wherever the old solver happened to land on the right
 root the two agree. The difference is robustness and keeping track of which mode is which.
+
+### p-k vs k-method
+
+| | p-k (`analysis/flutter.py`) | k-method (`analysis/k_method.py`) |
+|---|---|---|
+| Swept variable | speed `V` | reduced frequency `k` (`V` is an output) |
+| Unknown | complex `p` per mode | `Z = (1 + ig)/ω²` per branch |
+| Solution per point | fixed-point iteration on `k` | one eigenproblem, no iteration |
+| Damping `g` | true damping, `2 Re(p)/Im(p)` | required damping, `Im Z / Re Z` |
+| Meaning away from `g = 0` | approximate but physical | not physical |
+| Flutter point | `g = 0` crossing | same point (same equation at `g = 0`) |
+| Mode tracking | extrapolation in `V` | nearest eigenvalue in `k` |
+| Near divergence | `ValueError` when `k → 0` | branch folds back; NaN beyond the fold |
+| Settings | `k_tol_nd`, `max_iter_nd` | `n_k_nd` |
+| Use for | flutter speed and damping margins | cross-checking the flutter point |
 
 ---
 
@@ -453,7 +486,7 @@ With the CG ahead of the EA (`x_α < 0`) the section does not flutter in the ran
 | `A(k)` | aerodynamic matrix | `build_aero_matrix` |
 | `b` | semi-chord | `b_m` |
 | `C(k) = F + iG` | Theodorsen function | `theo_c` |
-| `g` | damping, `2 Re(p)/Im(p)` | `damping_g_nd` |
+| `g` | damping, `2 Re(p)/Im(p)` (p-k); required damping `Im Z/Re Z` (k-method) | `damping_g_nd` |
 | `γ` | decay-rate ratio, `Re(p)/Im(p)` | |
 | `h` | heave of the EA, positive down | |
 | `I_α` | pitch inertia about the EA | `inertia_alpha_kg_m2` |
@@ -462,11 +495,12 @@ With the CG ahead of the EA (`x_α < 0`) the section does not flutter in the ran
 | `L`, `M_EA` | lift (up), moment about the EA (nose up) | |
 | `m` | section mass | `mass_kg` |
 | `M`, `K` | mass and stiffness matrices | `build_mass_matrix`, `build_stiffness_matrix` |
-| `p` | non-dimensional eigenvalue `s b / V` | rows of `compute_flutter` output |
+| `p` | non-dimensional eigenvalue `s b / V` | rows of `compute_flutter` (and `compute_flutter_k`) output |
 | `r_α²` | `I_α/(m b²)` | |
 | `s = σ + iω` | physical eigenvalue | |
 | `V`, `V_F` | airspeed, flutter speed | `velocity_range_m_s`, `find_flutter_speed` |
 | `x_α` | CG position aft of the EA / `b` | `x_alpha_nd` |
+| `Z` | k-method eigenvalue `(1 + ig)/ω²` | `compute_k_branches` |
 | `α` | pitch, positive nose up | |
 | `μ` | mass ratio `m/(πρb²)` | |
 | `ρ` | air density | `rho_kg_m3` |
