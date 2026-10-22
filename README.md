@@ -75,7 +75,7 @@ The interactive prompts are pre-filled from `defaults/default_flutter.json` (sam
 input file, plus the solver settings `k_tol_nd` and `max_iter_nd`); `pi_nd` comes from
 `defaults/constants.json`. Edit those files to change the defaults; both are bundled into the
 executable. The shipped defaults (`a = -0.2`, `x_a = 0.1`, `omega_h = 10`, `omega_a = 25`
-rad/s, 10 kg, 0.5 kg m2, 1-100 m/s) flutter at 19.39 m/s.
+rad/s, 10 kg, 0.5 kg m2, 1-100 m/s) flutter at 19.56 m/s.
 
 ## Output
 
@@ -98,8 +98,8 @@ For each mode and speed V the p-k equation
 
 is solved by fixed-point iteration on k: with k fixed it is a 2x2 eigenproblem in p; the
 root nearest the mode's current estimate is kept and k is updated until it converges.
-`A(k)` is Theodorsen's oscillatory aerodynamics with the Jones two-pole approximation of
-`C(k)`. Modes are seeded from the coupled structural frequencies and extrapolated from speed
+`A(k)` is Theodorsen's oscillatory aerodynamics with R. T. Jones' two-pole approximation of
+`C(k)` (NACA Report 681: poles at `k = 0.0455` and `0.300`). Modes are seeded from the coupled structural frequencies and extrapolated from speed
 to speed so each mode keeps its identity.
 
 Damping is the equivalent structural damping `g = 2 real(p) / imag(p)` (twice the decay-rate
@@ -119,9 +119,9 @@ Full derivation, the old and new solvers, and verification: [docs/theory_pk_flut
 
 The textbook section of Hodges & Pierce, *Introduction to Structural Dynamics and
 Aeroelasticity*, ch. 5 (`a = -1/5`, `x_a = 1/10`, `mu = 20`, `r^2 = 6/25`,
-`omega_h / omega_a = 2/5`) is a regression test: `V_F / (b omega_a) = 2.1536`,
-`omega_F / omega_a = 0.650`. An independent k-method solve gives the same values; with the
-exact Theodorsen function it gives 2.184, so the Jones approximation costs about 1.4 %.
+`omega_h / omega_a = 2/5`) is a regression test: `V_F / (b omega_a) = 2.1704`,
+`omega_F / omega_a = 0.644`. An independent k-method solve gives the same values; with the
+exact Theodorsen function it gives 2.184, so the Jones approximation costs about 0.6 %.
 
 ## Tests
 

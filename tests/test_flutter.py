@@ -127,7 +127,7 @@ def test_compute_flutter_keeps_modes_distinct():
 
 
 def test_compute_flutter_detects_flutter_speed():
-    """TUI default section: flutter at 19.3934 m/s, from an independent k-method (g = 0) solve."""
+    """TUI default section: flutter at 19.5582 m/s, from an independent k-method (g = 0) solve."""
     mass_kg = 10.0
     inertia_alpha_kg_m2 = 0.5
     b_m = 0.5
@@ -144,7 +144,7 @@ def test_compute_flutter_detects_flutter_speed():
     v1, v2 = velocity_range_m_s[j], velocity_range_m_s[j + 1]
     g1, g2 = g_arr_nd[1, j], g_arr_nd[1, j + 1]
     v_flutter_m_s = v1 - g1 * (v2 - v1) / (g2 - g1)
-    np.testing.assert_allclose(v_flutter_m_s, 19.3934, rtol=1e-4)
+    np.testing.assert_allclose(v_flutter_m_s, 19.5582, rtol=1e-4)
 
 
 def test_find_flutter_speed_interpolates_between_grid_points():
@@ -174,9 +174,9 @@ def test_compute_flutter_hodges_pierce_textbook_case():
     Aeroelasticity, ch. 5): a = -1/5, e = -1/10 (x_a = 1/10), mu = 20, r^2 = 6/25,
     sigma = w_h / w_a = 2/5. Non-dimensionalised with b = 1 m, w_a = 1 rad/s, rho = 1 kg/m3.
 
-    With the Jones approximation of C(k) the flutter point is V_F / (b w_a) = 2.15363,
-    w_F / w_a = 0.6497, confirmed by an independent k-method (g = 0) solve. With exact
-    Theodorsen the same solve gives 2.184, consistent with the book's ~2.2; the 1.4 %
+    With the R. T. Jones approximation of C(k) the flutter point is V_F / (b w_a) = 2.17036,
+    w_F / w_a = 0.6443, confirmed by an independent k-method (g = 0) solve. With exact
+    Theodorsen the same solve gives 2.184, consistent with the book's ~2.2; the 0.6 %
     difference is the Jones approximation.
     """
     b_m = 1.0
@@ -197,8 +197,8 @@ def test_compute_flutter_hodges_pierce_textbook_case():
 
     assert find_flutter_speed(p_arr[0], velocity_range_m_s, b_m) is None
     v_flutter_m_s, omega_flutter_rad_s = find_flutter_speed(p_arr[1], velocity_range_m_s, b_m)
-    np.testing.assert_allclose(v_flutter_m_s / (b_m * omega_alpha_rad_s), 2.15363, rtol=1e-4)
-    np.testing.assert_allclose(omega_flutter_rad_s / omega_alpha_rad_s, 0.6497, rtol=1e-3)
+    np.testing.assert_allclose(v_flutter_m_s / (b_m * omega_alpha_rad_s), 2.17036, rtol=1e-4)
+    np.testing.assert_allclose(omega_flutter_rad_s / omega_alpha_rad_s, 0.6443, rtol=1e-3)
 
 
 def test_damping_g_nd_is_twice_decay_rate_ratio():

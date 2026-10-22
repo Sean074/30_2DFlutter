@@ -125,27 +125,27 @@ $$
 C(k) = F(k) + iG(k) = \frac{H_1^{(2)}(k)}{H_1^{(2)}(k) + i H_0^{(2)}(k)},
 $$
 
-with `C → 1` as `k → 0` (quasi-steady) and `C → ½` as `k → ∞`. The code (`theo_c`) uses a
-two-pole rational approximation of the Jones type:
+with `C → 1` as `k → 0` (quasi-steady) and `C → ½` as `k → ∞`. The code (`theo_c`) uses
+R. T. Jones' two-pole rational approximation (NACA Report 681, from his fit to the Wagner
+function):
 
 $$
-C(k) \approx 1 - \frac{0.165}{1 - 0.041\,i/k} - \frac{0.335}{1 - 0.32\,i/k}.
+C(k) \approx 1 - \frac{0.165}{1 - 0.0455\,i/k} - \frac{0.335}{1 - 0.300\,i/k}.
 $$
 
 ![Theodorsen function, exact vs Jones](figures/theodorsen_jones_vs_exact.png)
 
-The largest error against the exact function is `|ΔC| = 0.021`, near `k = 0.18`. The
-coefficients more commonly quoted (R. T. Jones, from his Wagner-function fit) are `0.0455`
-and `0.300` instead of `0.041` and `0.32`. They fit better (largest `|ΔC| = 0.0145`) and
-change the flutter speed noticeably:
+The largest error against the exact function is `|ΔC| = 0.0145` for `k ≤ 2`. Until
+issue #9 the code used `0.041` and `0.32` in place of `0.0455` and `0.300`; that fit is worse
+(largest `|ΔC| = 0.021`, near `k = 0.18`) and made the flutter speed noticeably low:
 
-| Case | Code's Jones | R. T. Jones | Exact Theodorsen |
+| Case | Old `0.041 / 0.32` | R. T. Jones (code) | Exact Theodorsen |
 |---|---|---|---|
 | Hodges & Pierce, `V_F/(bω_α)` | 2.1536 | 2.1704 | 2.1839 |
 | Shipped defaults, `V_F` [m/s] | 19.393 | 19.558 | 19.575 |
 
-So most of the gap between this tool and exact theory comes from the choice of
-coefficients, not from the two-pole form itself (see section 9).
+So most of the gap between a two-pole fit and exact theory comes from the choice of
+coefficients, not from the two-pole form itself.
 
 ---
 
@@ -325,16 +325,16 @@ An independent **k-method** solver, written directly from Theodorsen's `L` and `
 
 | Case | p-k `V_F` | p-k `ω_F` | k-method `V_F` | k-method `ω_F` | Exact `C(k)` `V_F` |
 |---|---|---|---|---|---|
-| Hodges & Pierce (`V_F/bω_α`, `ω_F/ω_α`) | 2.15363 | 0.64971 | 2.15363 | 0.64970 | 2.18389 |
-| Shipped defaults (m/s, rad/s) | 19.39338 | 16.09687 | 19.39336 | 16.09686 | 19.57463 |
+| Hodges & Pierce (`V_F/bω_α`, `ω_F/ω_α`) | 2.17036 | 0.64433 | 2.17036 | 0.64433 | 2.18389 |
+| Shipped defaults (m/s, rad/s) | 19.55820 | 16.01076 | 19.55813 | 16.01074 | 19.57463 |
 | `data/inputs/default.json` | none | | none | | none |
 
 The Hodges & Pierce section (*Introduction to Structural Dynamics and Aeroelasticity*,
 ch. 5) has `a = −1/5`, `x_α = 1/10`, `μ = 20`, `r_α² = 6/25`, `σ = 2/5`. The shipped
 defaults are those of `defaults/default_flutter.json`. p-k and k-method agree to 5–6
-significant figures. With the exact Theodorsen function the flutter speed is 1.4 % (Hodges &
-Pierce) and 0.9 % (shipped defaults) higher, which is the cost of the code's Jones
-coefficients (section 3).
+significant figures. With the exact Theodorsen function the flutter speed is 0.6 % (Hodges &
+Pierce) and 0.1 % (shipped defaults) higher, which is the cost of the Jones approximation
+(section 3).
 
 ![V-g / V-f, Hodges & Pierce](figures/vg_hodges_pierce.png)
 
@@ -364,9 +364,9 @@ With the CG ahead of the EA (`x_α < 0`) the section does not flutter in the ran
 
 ## 9. Limitations and possible extensions
 
-- **Jones coefficients.** The code's `0.041 / 0.32` make the flutter speed 0.9–1.4 % low
-  in the verified cases. The R. T. Jones values `0.0455 / 0.300` reduce this to 0.1–0.6 %.
-  Changing them would change the regression values in the tests.
+- **Jones approximation.** The two-pole `C(k)` makes the flutter speed 0.1–0.6 % low in
+  the verified cases. The exact Theodorsen function (Hankel functions) would remove this
+  but needs Bessel functions the code does not otherwise depend on.
 - **Incompressible, thin-airfoil aerodynamics.** No Mach effects; no thickness, camber or
   viscous effects; no stall.
 - **No structural damping input.** `g` is an output; a damping margin is read off the plot
