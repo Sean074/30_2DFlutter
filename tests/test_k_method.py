@@ -117,3 +117,36 @@ def test_compute_flutter_k_rejects_too_few_k_points():
         compute_flutter_k(
             mass_matrix_kg, stiffness_matrix_n_m, np.array([1.0, 2.0]), 1.225, 0.5, -0.2, n_k_nd=1
         )
+
+
+def test_k_method_three_dof_flap_example_matches_pk():
+    """data/inputs/flap_example.json: same flutter point as p-k, 20.4965 m/s at 16.859 rad/s."""
+    mass_matrix_kg = build_mass_matrix(
+        10.0,
+        0.5,
+        0.5,
+        0.1,
+        x_beta_nd=0.0125,
+        inertia_beta_kg_m2=0.0156,
+        c_hinge_nd=0.6,
+        a_h_nd=-0.2,
+    )
+    stiffness_matrix_n_m = build_stiffness_matrix(1000.0, 312.5, 30.0**2 * 0.0156)
+    velocity_range_m_s = np.linspace(0.5, 60.0, 600)
+
+    p_arr = compute_flutter_k(
+        mass_matrix_kg, stiffness_matrix_n_m, velocity_range_m_s, 1.225, 0.5, -0.2, c_hinge_nd=0.6
+    )
+
+    assert p_arr.shape == (3, 600)
+    v_flutter_m_s, omega_flutter_rad_s = find_flutter_speed(p_arr[1], velocity_range_m_s, 0.5)
+    np.testing.assert_allclose(v_flutter_m_s, 20.4965, rtol=1e-4)
+    np.testing.assert_allclose(omega_flutter_rad_s, 16.859, rtol=1e-4)
+
+
+def test_k_branches_reject_flap_matrices_without_hinge():
+    mass_matrix_kg, stiffness_matrix_n_m = np.eye(3), np.eye(3)
+    with pytest.raises(ValueError, match="hinge"):
+        compute_k_branches(
+            mass_matrix_kg, stiffness_matrix_n_m, np.array([1.0, 0.5]), 1.2, 0.5, 0.0
+        )

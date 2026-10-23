@@ -48,7 +48,14 @@ _DEFAULT_KEYS = (
     "max_iter_nd",
     "method",
     "n_k_nd",
+    "flap",
+    "c_hinge_nd",
+    "x_beta_nd",
+    "inertia_beta_kg_m2",
+    "omega_beta_rad_s",
 )
+# Flap (third DOF) inputs: an input file gives all of them or none.
+_FLAP_KEYS = ("c_hinge_nd", "x_beta_nd", "inertia_beta_kg_m2", "omega_beta_rad_s")
 
 # Selectable solvers: input-file / prompt code -> display name.
 _METHODS = {"pk": "p-k METHOD", "k": "k METHOD"}
@@ -119,6 +126,7 @@ def _prompt_float(
     default: float | None = None,
     gt: float | None = None,
     ge: float | None = None,
+    lt: float | None = None,
     warn_range: tuple[float, float] | None = None,
 ) -> float | None:
     """Prompt for a float with validation. Returns None on quit."""
@@ -143,6 +151,9 @@ def _prompt_float(
             continue
         if ge is not None and val < ge:
             print(f"{_RED}  [E] INVALID INPUT: must be >= {ge}. Re-enter.{_R}")
+            continue
+        if lt is not None and val >= lt:
+            print(f"{_RED}  [E] INVALID INPUT: must be < {lt}. Re-enter.{_R}")
             continue
         if warn_range is not None:
             lo, hi = warn_range
@@ -246,6 +257,13 @@ def _stage1_input(defaults: dict) -> dict | None:
         return None
 
     print()
+    print(f"{_WHITE_B}  FLAP{_R}")
+    _minor()
+    flap = _stage1_flap(defaults)
+    if flap is None:
+        return None
+
+    print()
     print(f"{_WHITE_B}  AERODYNAMIC{_R}")
     _minor()
     rho_kg_m3 = _prompt_float("AIR DENSITY rho", "kg/m3", default=defaults["rho_kg_m3"], gt=0.0)
@@ -280,6 +298,43 @@ def _stage1_input(defaults: dict) -> dict | None:
         "v_min_m_s": v_min_m_s,
         "v_max_m_s": v_max_m_s,
         "n_pts": int(n_pts_raw),
+        **flap,
+    }
+
+
+def _stage1_flap(defaults: dict) -> dict | None:
+    """Ask whether to model the flap and, if so, its inputs. Returns None on quit."""
+    include = _confirm("INCLUDE FLAP (3-DOF)?", default=bool(defaults["flap"]))
+    if include is None:
+        return None
+    if not include:
+        return {"flap": False}
+    c_hinge_nd = _prompt_float(
+        "HINGE POSITION c", "-1 to 1", default=defaults["c_hinge_nd"], gt=-1.0, lt=1.0
+    )
+    if c_hinge_nd is None:
+        return None
+    x_beta_nd = _prompt_float(
+        "FLAP CG OFFSET x_b", "-", default=defaults["x_beta_nd"], warn_range=(-0.1, 0.1)
+    )
+    if x_beta_nd is None:
+        return None
+    inertia_beta_kg_m2 = _prompt_float(
+        "FLAP INERTIA Ib", "kg.m2", default=defaults["inertia_beta_kg_m2"], gt=0.0
+    )
+    if inertia_beta_kg_m2 is None:
+        return None
+    omega_beta_rad_s = _prompt_float(
+        "FLAP FREQ omega_b", "rad/s", default=defaults["omega_beta_rad_s"], gt=0.0
+    )
+    if omega_beta_rad_s is None:
+        return None
+    return {
+        "flap": True,
+        "c_hinge_nd": c_hinge_nd,
+        "x_beta_nd": x_beta_nd,
+        "inertia_beta_kg_m2": inertia_beta_kg_m2,
+        "omega_beta_rad_s": omega_beta_rad_s,
     }
 
 
@@ -321,6 +376,16 @@ def _stage2_check(data: dict) -> bool | None:
     _row("PITCH FREQ omega_a", "rad/s", data["omega_alpha_rad_s"])
 
     print()
+    print(f"{_WHITE_B}  FLAP{_R}")
+    _minor()
+    print(f"  {'INCLUDE FLAP (3-DOF)':<28}: {'YES' if data['flap'] else 'NO'}")
+    if data["flap"]:
+        _row("HINGE POSITION c", "-1 to 1", data["c_hinge_nd"])
+        _row("FLAP CG OFFSET x_b", "-", data["x_beta_nd"])
+        _row("FLAP INERTIA Ib", "kg.m2", data["inertia_beta_kg_m2"])
+        _row("FLAP FREQ omega_b", "rad/s", data["omega_beta_rad_s"])
+
+    print()
     print(f"{_WHITE_B}  AERODYNAMIC{_R}")
     _minor()
     _row("AIR DENSITY rho", "kg/m3", data["rho_kg_m3"])
@@ -355,13 +420,15 @@ def _print_results_table(
     """Print velocity-damping / velocity-frequency table. Highlights flutter rows in cyan."""
     col_w = 10
     mode_labels = list(flutter_p_modes.keys())
+    # Two modes fit with 4-space gaps; three need 1-space gaps to stay within 80 columns.
+    gap = " " * (4 if len(mode_labels) <= 2 else 1)
 
     header = f"  {'V [m/s]':>{col_w}}"
     for i, lbl in enumerate(mode_labels, start=1):
-        header += f"    {'g (MODE ' + str(i) + ')':>{col_w}}    {'f [rad/s]':>{col_w}}"
+        header += f"{gap}{'g (MODE ' + str(i) + ')':>{col_w}}{gap}{'f [rad/s]':>{col_w}}"
     print(_WHITE_B + header + _R)
 
-    sep = "  " + "-" * col_w + ("    " + "-" * col_w + "    " + "-" * col_w) * len(mode_labels)
+    sep = "  " + "-" * col_w + (gap + "-" * col_w + gap + "-" * col_w) * len(mode_labels)
     print(sep)
 
     for i, v_m_s in enumerate(velocity_range_m_s):
@@ -370,15 +437,15 @@ def _print_results_table(
         for lbl in mode_labels:
             p = flutter_p_modes[lbl][i]
             if np.isnan(p):
-                # k-method branch does not reach this speed.
-                row += f"    {'-':>{col_w}}    {'-':>{col_w}}"
+                # The mode's branch does not reach this speed.
+                row += f"{gap}{'-':>{col_w}}{gap}{'-':>{col_w}}"
                 continue
             im = np.imag(p)
             g_nd = float(damping_g_nd(p)) if im != 0.0 else 0.0
             f_rad_s = im * v_m_s / b_m
             if g_nd >= 0:
                 flutter_row = True
-            row += f"    {g_nd:>{col_w}.4f}    {f_rad_s:>{col_w}.3f}"
+            row += f"{gap}{g_nd:>{col_w}.4f}{gap}{f_rad_s:>{col_w}.3f}"
         print((_CYAN + row + _R) if flutter_row else row)
 
 
@@ -392,10 +459,26 @@ def _solve_modes(
     k_alpha_nm_rad = data["omega_alpha_rad_s"] ** 2 * data["inertia_alpha_kg_m2"]
     k_heave_n_m = data["omega_heave_rad_s"] ** 2 * data["mass_kg"]
 
-    mass_matrix_kg = build_mass_matrix(
-        data["mass_kg"], data["inertia_alpha_kg_m2"], b_m, data["x_alpha_nd"]
-    )
-    stiffness_matrix_n_m = build_stiffness_matrix(k_heave_n_m, k_alpha_nm_rad)
+    if data["flap"]:
+        c_hinge_nd = data["c_hinge_nd"]
+        mass_matrix_kg = build_mass_matrix(
+            data["mass_kg"],
+            data["inertia_alpha_kg_m2"],
+            b_m,
+            data["x_alpha_nd"],
+            data["x_beta_nd"],
+            data["inertia_beta_kg_m2"],
+            c_hinge_nd,
+            data["a_h_nd"],
+        )
+        k_beta_nm_rad = data["omega_beta_rad_s"] ** 2 * data["inertia_beta_kg_m2"]
+    else:
+        c_hinge_nd = None
+        mass_matrix_kg = build_mass_matrix(
+            data["mass_kg"], data["inertia_alpha_kg_m2"], b_m, data["x_alpha_nd"]
+        )
+        k_beta_nm_rad = None
+    stiffness_matrix_n_m = build_stiffness_matrix(k_heave_n_m, k_alpha_nm_rad, k_beta_nm_rad)
 
     omega_arr_rad_s = compute_structural_frequencies(mass_matrix_kg, stiffness_matrix_n_m)
     print(f"  Solving {len(omega_arr_rad_s)} modes ...", end="", flush=True)
@@ -407,6 +490,7 @@ def _solve_modes(
         "b_m": b_m,
         "a_h_nd": data["a_h_nd"],
         "pi_nd": solver["pi_nd"],
+        "c_hinge_nd": c_hinge_nd,
     }
     if data["method"] == "k":
         p_arr_modes = compute_flutter_k(**common, n_k_nd=solver["n_k_nd"])
@@ -496,13 +580,15 @@ def _stage4_summary(
     if method == "k":
         print(f"  {_YELLOW}[W] k-method g is the damping required for neutral motion; only "
               f"g = 0 is physical.{_R}")
-        for i, lbl in enumerate(mode_labels, start=1):
-            known_arr = np.flatnonzero(~np.isnan(flutter_p_modes[lbl]))
-            if len(known_arr) == 0:
-                print(f"  {_YELLOW}[W] MODE {i} not found in the velocity range.{_R}")
-            elif known_arr[-1] < len(velocity_range_m_s) - 1:
-                print(f"  {_YELLOW}[W] MODE {i} branch ends at V = "
-                      f"{velocity_range_m_s[known_arr[-1]]:.1f} m/s (V(k) folds back).{_R}")
+    # k-method: V(k) folds back. p-k: frequency -> 0 (overdamped or divergence) or no convergence.
+    end_reason = "V(k) folds back" if method == "k" else "p-k cannot follow it"
+    for i, lbl in enumerate(mode_labels, start=1):
+        known_arr = np.flatnonzero(~np.isnan(flutter_p_modes[lbl]))
+        if len(known_arr) == 0:
+            print(f"  {_YELLOW}[W] MODE {i} not found in the velocity range.{_R}")
+        elif known_arr[-1] < len(velocity_range_m_s) - 1:
+            print(f"  {_YELLOW}[W] MODE {i} ends at V = "
+                  f"{velocity_range_m_s[known_arr[-1]]:.1f} m/s ({end_reason}).{_R}")
 
     if save_path is not None:
         print(f"  {'PLOT SAVED':<28}: {_GREEN}{save_path}{_R}")
@@ -533,6 +619,7 @@ def _run_pk_flutter_batch(input_path: Path, save_outputs: bool, solver: dict) ->
         "v_min_m_s": float(v_min),
         "v_max_m_s": float(v_max),
         "n_pts": int(n_pts),
+        **_flap_from_input(raw),
     }
 
     velocity_range_m_s = np.linspace(data["v_min_m_s"], data["v_max_m_s"], data["n_pts"])
@@ -582,6 +669,17 @@ def _run_pk_flutter_batch(input_path: Path, save_outputs: bool, solver: dict) ->
     _stage4_summary(
         flutter_p_modes, velocity_range_m_s, data["b_m"], save_path, data["method"]
     )
+
+
+def _flap_from_input(raw: dict) -> dict:
+    """Flap entries of an input file: all of _FLAP_KEYS (3-DOF) or none (2-DOF)."""
+    present = [key for key in _FLAP_KEYS if key in raw]
+    if not present:
+        return {"flap": False}
+    missing = [key for key in _FLAP_KEYS if key not in raw]
+    if missing:
+        raise ValueError(f"flap input incomplete; missing {', '.join(missing)}")
+    return {"flap": True} | {key: float(raw[key]) for key in _FLAP_KEYS}
 
 
 def _run_pk_flutter_interactive(defaults: dict, solver: dict) -> None:

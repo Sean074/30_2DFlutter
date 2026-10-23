@@ -1,7 +1,7 @@
 # 2D Flutter Analysis (p-k and k methods)
 
 Flutter onset speed of a two-degree-of-freedom (heave + pitch) airfoil section in
-incompressible flow. The tool sweeps a velocity range, solves the flutter equation at each
+incompressible flow, optionally with a trailing-edge flap as a third degree of freedom. The tool sweeps a velocity range, solves the flutter equation at each
 speed for every structural mode with the p-k method (default) or the k-method, and reports
 where the damping of a mode crosses zero.
 
@@ -65,9 +65,21 @@ JSON, SI units, keys named `<name>_<unit>`. Example (`data/inputs/default.json`)
 | `omega_heave_rad_s`, `omega_alpha_rad_s` | Uncoupled heave and pitch frequencies [rad/s] |
 | `rho_kg_m3` | Air density [kg/m3] |
 | `velocity_range_m_s` | `[v_min, v_max, n_points]` of the sweep |
+| `c_hinge_nd` | Flap hinge position aft of mid-chord, in semi-chords (`c`, between -1 and 1) |
+| `x_beta_nd` | Flap CG aft of the hinge, in semi-chords, normalised by the total mass (`x_b`) |
+| `inertia_beta_kg_m2` | Flap inertia about the hinge [kg m2] |
+| `omega_beta_rad_s` | Uncoupled flap (hinge-spring) frequency [rad/s] |
 
 The heave and pitch stiffnesses are derived as `omega_heave^2 * mass` and
 `omega_alpha^2 * inertia`.
+
+The four flap keys are optional: give all of them for the three-DOF section (heave, pitch,
+flap) or none for two DOF; a partial set is an error. The flap stiffness is
+`omega_beta^2 * inertia_beta`, the flap static moment is `mass * b * x_beta`, and
+`inertia_alpha_kg_m2` is for the whole section, flap included.
+`data/inputs/flap_example.json` is the shipped-defaults section with a flap; it flutters at
+20.50 m/s. With three modes the results table uses narrower gaps so it stays within 80
+columns.
 
 This example has the CG ahead of the elastic axis (`x_alpha_nd < 0`), which is stable: it
 correctly reports no flutter up to 50 m/s.
@@ -76,7 +88,8 @@ correctly reports no flutter up to 50 m/s.
 
 The interactive prompts are pre-filled from `defaults/default_flutter.json` (same keys as an
 input file, plus the solver settings `k_tol_nd` and `max_iter_nd` (p-k) and `n_k_nd`
-(number of reduced frequencies in the k-method sweep)); `pi_nd` comes from
+(number of reduced frequencies in the k-method sweep), and `flap` (whether the INCLUDE FLAP
+prompt defaults to yes)); `pi_nd` comes from
 `defaults/constants.json`. Edit those files to change the defaults; both are bundled into the
 executable. The shipped defaults (`a = -0.2`, `x_a = 0.1`, `omega_h = 10`, `omega_a = 25`
 rad/s, 10 kg, 0.5 kg m2, 1-100 m/s, p-k method) flutter at 19.56 m/s.
@@ -128,12 +141,16 @@ the theory document.
 
 ### Errors and warnings
 
-The p-k solver raises an error rather than return a wrong answer if the iteration does not
-converge, if two modes collapse onto one root (refine the sweep), or if a mode's frequency
-reaches zero (static divergence; lower the maximum speed). A warning is printed when the
-reduced frequency drops below 0.01, where the quasi-steady limit is approached.
+The p-k solver raises an error rather than return a wrong answer if two modes collapse onto
+one root (refine the sweep). A mode the p-k iteration can no longer follow (its frequency
+falls to zero, near static divergence or because it is so heavily damped it stops
+oscillating, or the iteration does not converge) ends at that speed: the table shows `-`
+beyond it, the other modes carry on, and a warning gives the speed. A warning is also
+printed when the reduced frequency drops below 0.01, where the quasi-steady limit is
+approached.
 
-Full derivation, the old and new p-k solvers, the k-method, and verification:
+Full derivation, the old and new p-k solvers, the k-method, the flap degree of freedom, and
+verification:
 [docs/theory_pk_flutter.md](docs/theory_pk_flutter.md).
 
 ### Verification
@@ -169,7 +186,7 @@ file_io/             loader.py (JSON / CSV in), exporter.py (results out)
 plotting/plots.py    V-g / V-f figure
 ui/tui.py            four-stage terminal workflow and batch mode
 defaults/            default values and constants (JSON)
-data/inputs/         example input files
+data/inputs/         example input files (default.json, flap_example.json)
 tests/               pytest, mirrors the source tree
 docs/                theory (theory_pk_flutter.md + figures/), code standard, TUI guide
 ```

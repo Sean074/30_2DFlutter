@@ -392,6 +392,25 @@ def fig_vg(name: str, v_max_m_s: float, path: Path) -> NDArray[np.complex128]:
     return p, v_arr, b
 
 
+def fig_vg_flap(path: Path) -> None:
+    """V-g / V-f of data/inputs/flap_example.json (3-DOF); prints p-k and k-method V_F."""
+    mass = build_mass_matrix(
+        10.0, 0.5, 0.5, 0.1, x_beta_nd=0.0125, inertia_beta_kg_m2=0.0156, c_hinge_nd=0.6,
+        a_h_nd=-0.2,
+    )
+    stiff = build_stiffness_matrix(10.0**2 * 10.0, 25.0**2 * 0.5, 30.0**2 * 0.0156)
+    v_arr = np.linspace(0.5, 60.0, 600)
+    p = compute_flutter(mass, stiff, v_arr, 1.225, 0.5, -0.2, c_hinge_nd=0.6)
+    p_k = compute_flutter_k(mass, stiff, v_arr, 1.225, 0.5, -0.2, c_hinge_nd=0.6)
+    omega_arr = compute_structural_frequencies(mass, stiff)
+    modes = {f"MODE {i + 1} ({omega_arr[i]:.2f} rad/s)": p[i] for i in range(len(omega_arr))}
+    plot_vg_vf(v_arr, modes, 0.5, save_path=path, title="Flap example (3-DOF), p-k")
+    plt.close("all")
+    pk = find_flutter_speed(p[1], v_arr, 0.5)
+    km = find_flutter_speed(p_k[1], v_arr, 0.5)
+    print(f"{'flap_example':18s} {pk[0]:>10.5f} {pk[1]:>10.5f} {km[0]:>11.5f} {km[1]:>11.5f}")
+
+
 def main() -> None:
     fig_section_geometry(_OUT_DIR / "section_geometry.png")
     fig_theodorsen(_OUT_DIR / "theodorsen_jones_vs_exact.png")
@@ -409,6 +428,7 @@ def main() -> None:
         fmt = lambda x, i: f"{x[i]:.5f}" if x is not None else "none"  # noqa: E731
         print(f"{name:18s} {fmt(pk, 0):>10s} {fmt(pk, 1):>10s} {fmt(km, 0):>11s} "
               f"{fmt(km, 1):>11s} {fmt(ex, 0):>12s}")
+    fig_vg_flap(_OUT_DIR / "vg_flap_example.png")
 
 
 if __name__ == "__main__":

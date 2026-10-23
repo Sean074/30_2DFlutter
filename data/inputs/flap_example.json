@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "method": "pk",
+  "b_m": 0.5,
+  "a_h_nd": -0.2,
+  "x_alpha_nd": 0.1,
+  "mass_kg": 10.0,
+  "inertia_alpha_kg_m2": 0.5,
+  "omega_alpha_rad_s": 25.0,
+  "omega_heave_rad_s": 10.0,
+  "rho_kg_m3": 1.225,
+  "c_hinge_nd": 0.6,
+  "x_beta_nd": 0.0125,
+  "inertia_beta_kg_m2": 0.0156,
+  "omega_beta_rad_s": 30.0,
+  "velocity_range_m_s": [1.0, 60.0, 119]
+}
