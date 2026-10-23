@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
-from analysis.flutter import (
+from flutter2d.analysis.flutter import (
     build_mass_matrix,
     build_stiffness_matrix,
     compute_flutter,
@@ -16,10 +16,10 @@ from analysis.flutter import (
     damping_g_nd,
     find_flutter_speed,
 )
-from analysis.k_method import compute_flutter_k
+from flutter2d.analysis.k_method import compute_flutter_k
 from file_io.loader import load_json
 from file_io.exporter import save_flutter_results
-from plotting.plots import plot_vg_vf
+from flutter2d.plotting.plots import plot_vg_vf
 
 # ANSI colour codes — 16-colour ANSI only
 _R = "\033[0m"

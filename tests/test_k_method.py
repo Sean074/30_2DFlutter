@@ -1,18 +1,18 @@
-"""Tests for analysis/k_method.py."""
+"""Tests for flutter2d/analysis/k_method.py."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from analysis.flutter import (
+from flutter2d.analysis.flutter import (
     build_mass_matrix,
     build_stiffness_matrix,
     compute_flutter,
     compute_structural_frequencies,
     find_flutter_speed,
 )
-from analysis.k_method import compute_flutter_k, compute_k_branches
+from flutter2d.analysis.k_method import compute_flutter_k, compute_k_branches
 
 
 def _hodges_pierce() -> tuple[np.ndarray, np.ndarray]:

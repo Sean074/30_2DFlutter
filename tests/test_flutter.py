@@ -1,11 +1,11 @@
-"""Tests for analysis/flutter.py."""
+"""Tests for flutter2d/analysis/flutter.py."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from analysis.flutter import (
+from flutter2d.analysis.flutter import (
     build_aero_matrix,
     build_mass_matrix,
     build_stiffness_matrix,

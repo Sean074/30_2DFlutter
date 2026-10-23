@@ -17,9 +17,15 @@ project/
 ├── data/
 │   ├── inputs/              # Input files: JSON or CSV
 │   └── outputs/             # Generated results: JSON, CSV, PNG
-├── analysis/
-│   ├── __init__.py
-│   └── <method_name>.py     # One module per analysis method
+├── pyproject.toml           # Packages flutter2d/ (the engine) for pip install
+├── flutter2d/               # Engine package — no terminal I/O
+│   ├── __init__.py          # __version__
+│   ├── analysis/
+│   │   ├── __init__.py
+│   │   └── <method_name>.py # One module per analysis method
+│   └── plotting/
+│       ├── __init__.py
+│       └── plots.py         # All matplotlib / visualisation logic
 ├── io/
 │   ├── __init__.py
 │   ├── loader.py            # Input parsing (JSON / CSV → dicts / dataclasses)
@@ -27,9 +33,6 @@ project/
 ├── ui/
 │   ├── __init__.py
 │   └── tui.py               # All TUI logic (menus, prompts, validation)
-├── plotting/
-│   ├── __init__.py
-│   └── plots.py             # All matplotlib / visualisation logic
 ├── tests/
 │   └── test_<module>.py
 ├── docs/
@@ -41,8 +44,8 @@ project/
 ### Rules
 
 - `main.py` **must not** contain analysis logic, I/O parsing, or plotting code.
-- Each analysis method lives in its own module under `analysis/`.
-- Tests mirror the source structure: `tests/test_flutter.py` tests `analysis/flutter.py`.
+- Each analysis method lives in its own module under `flutter2d/analysis/`.
+- Tests mirror the source structure: `tests/test_flutter.py` tests `flutter2d/analysis/flutter.py`.
 
 ---
 
@@ -141,7 +144,7 @@ compute_flutter(..., k_tol_nd=defaults["k_tol_nd"], max_iter_nd=defaults["max_it
 ```
 
 ```python
-# In analysis/flutter.py — receive constants as arguments, never import directly
+# In flutter2d/analysis/flutter.py — receive constants as arguments, never import directly
 def compute_flutter(
     ...,
     pi_nd: float,  # passed in from _CONSTANTS["pi_nd"]
@@ -354,7 +357,7 @@ ruff check .
 ## 12. Testing
 
 - Use `pytest`.
-- One test file per module: `tests/test_flutter.py` for `analysis/flutter.py`.
+- One test file per module: `tests/test_flutter.py` for `flutter2d/analysis/flutter.py`.
 - Tests use only hardcoded SI values — no file I/O in unit tests.
 - Numerical results checked with `np.testing.assert_allclose(actual, expected, rtol=1e-4)`.
 

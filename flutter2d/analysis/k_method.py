@@ -7,7 +7,7 @@ from itertools import permutations
 import numpy as np
 from numpy.typing import NDArray
 
-from analysis.flutter import (
+from flutter2d.analysis.flutter import (
     build_aero_matrix,
     check_flap_dofs,
     compute_structural_frequencies,
