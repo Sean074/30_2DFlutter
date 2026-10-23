@@ -1,4 +1,5 @@
 """Matplotlib visualisation for flutter V-g / V-f diagrams."""
+
 from __future__ import annotations
 
 import sys
@@ -32,28 +33,19 @@ if getattr(sys, "frozen", False):
     _select_frozen_backend(_FROZEN_BACKENDS)
 
 
-# Damping window [-L, +L * _G_POS_TO_NEG_RATIO_ND], with L clamped to this range so the g = 0
-# crossing stays readable even when one mode is very heavily damped.
-_G_POS_TO_NEG_RATIO_ND = 0.5
-_G_NEG_LIM_RANGE_ND = (0.2, 1.0)
+# Fixed damping window: the allowable g = 0.03 sits near the middle, so the approach to the
+# limit and the g = 0 crossing stay readable whatever the most heavily damped mode does.
+_G_LIM_ND = (-0.4, 0.2)
+_G_ALLOWABLE_ND = 0.03
 _FREQ_MARGIN_ND = 1.1
 
 
-def _axis_limits(
-    freq_arr_rad_s: NDArray[np.float64],
-    g_arr_nd: NDArray[np.float64],
-) -> tuple[tuple[float, float], tuple[float, float]]:
-    """Return ((freq_min, freq_max) in rad/s, (g_min, g_max)) for the V-f and V-g axes."""
+def _freq_axis_limits(freq_arr_rad_s: NDArray[np.float64]) -> tuple[float, float]:
+    """Return (freq_min, freq_max) in rad/s for the V-f axis: 0 to 1.1 x the highest frequency."""
     freq_max_rad_s = float(np.nanmax(freq_arr_rad_s)) * _FREQ_MARGIN_ND
     if not freq_max_rad_s > 0.0:
         freq_max_rad_s = 1.0
-
-    g_neg_needed_nd = max(
-        -float(np.nanmin(g_arr_nd)),
-        float(np.nanmax(g_arr_nd)) / _G_POS_TO_NEG_RATIO_ND,
-    )
-    g_neg_lim_nd = float(np.clip(g_neg_needed_nd, *_G_NEG_LIM_RANGE_ND))
-    return (0.0, freq_max_rad_s), (-g_neg_lim_nd, g_neg_lim_nd * _G_POS_TO_NEG_RATIO_ND)
+    return (0.0, freq_max_rad_s)
 
 
 def plot_vg_vf(
@@ -68,8 +60,8 @@ def plot_vg_vf(
     """
     Produce V-f (top) and V-g (bottom) flutter diagrams.
 
-    Axis limits follow the data: frequency from 0 to 1.1 x the highest modal frequency; damping
-    g = 2 real(p) / imag(p) in a window [-L, +L/2] around g = 0, with L between 0.2 and 1.0.
+    Frequency runs from 0 to 1.1 x the highest modal frequency; damping g = 2 real(p) / imag(p)
+    is shown on a fixed window [-0.4, +0.2] around the allowable g = 0.03.
     The flutter point of each mode that flutters is marked on both plots.
 
     Parameters
@@ -85,7 +77,7 @@ def plot_vg_vf(
     freq_lim_rad_s : tuple[float, float] or None
         Frequency axis limits in rad/s, overriding the automatic ones.
     g_lim_nd : tuple[float, float] or None
-        Damping axis limits, overriding the automatic ones.
+        Damping axis limits, overriding the default [-0.4, +0.2].
     title : str
         Figure title.
 
@@ -105,10 +97,11 @@ def plot_vg_vf(
     p_arr_modes = np.array(list(flutter_p_modes.values()))
     freq_arr_rad_s = np.imag(p_arr_modes) * velocity_range_m_s / b_m
     g_arr_nd = damping_g_nd(p_arr_modes)
-    auto_freq_lim_rad_s, auto_g_lim_nd = _axis_limits(freq_arr_rad_s, g_arr_nd)
 
-    ax[0].set_ylim(freq_lim_rad_s if freq_lim_rad_s is not None else auto_freq_lim_rad_s)
-    ax[1].set_ylim(g_lim_nd if g_lim_nd is not None else auto_g_lim_nd)
+    if freq_lim_rad_s is None:
+        freq_lim_rad_s = _freq_axis_limits(freq_arr_rad_s)
+    ax[0].set_ylim(freq_lim_rad_s)
+    ax[1].set_ylim(g_lim_nd if g_lim_nd is not None else _G_LIM_ND)
     for axis in ax:
         axis.set_xlim(velocity_range_m_s[0], velocity_range_m_s[-1])
         axis.grid(True)
@@ -125,9 +118,11 @@ def plot_vg_vf(
             ax[1].plot(v_flutter_m_s, 0.0, "o", color=colour)
             for axis in ax:
                 axis.axvline(v_flutter_m_s, color=colour, linestyle="--", linewidth=1)
-            ax[1].plot([], [], "--", color=colour, label=f"V_F = {v_flutter_m_s:.2f} m/s")
+            ax[1].plot(
+                [], [], "--", color=colour, label=f"V_F = {v_flutter_m_s:.2f} m/s"
+            )
 
-    ax[1].axhline(0.03, linestyle="dotted", color="black", linewidth=2)
+    ax[1].axhline(_G_ALLOWABLE_ND, linestyle="dotted", color="black", linewidth=2)
     ax[1].axhline(0.0, color="black", linewidth=2)
 
     ax[0].legend()

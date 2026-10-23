@@ -1,4 +1,5 @@
 """Tests for plotting/plots.py."""
+
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
@@ -50,34 +51,26 @@ def test_select_frozen_backend_falls_back_to_agg(monkeypatch):
     assert plots._select_frozen_backend(("TkAgg", "MacOSX")) == "Agg"
 
 
-def test_axis_limits_frequency_follows_data():
+def test_freq_axis_limits_follow_data():
     """Frequency axis runs from 0 to 1.1 x the highest frequency, not a fixed 50 rad/s."""
     freq_arr_rad_s = np.array([[0.2, 0.4], [0.9, 1.0]])
-    g_arr_nd = np.array([[-0.05, -0.04], [-0.02, 0.01]])
-    freq_lim_rad_s, _ = plots._axis_limits(freq_arr_rad_s, g_arr_nd)
-    np.testing.assert_allclose(freq_lim_rad_s, (0.0, 1.1), rtol=1e-4)
+    np.testing.assert_allclose(
+        plots._freq_axis_limits(freq_arr_rad_s), (0.0, 1.1), rtol=1e-4
+    )
 
 
-def test_axis_limits_damping_positive_is_half_negative_and_clamped():
-    """A heavily damped mode (g = -9.4) clamps the window to [-1.0, +0.5]."""
-    freq_arr_rad_s = np.array([[10.0, 12.0], [25.0, 16.0]])
-    g_arr_nd = np.array([[-0.01, -9.4], [-0.11, 0.248]])
-    _, g_lim_nd = plots._axis_limits(freq_arr_rad_s, g_arr_nd)
-    np.testing.assert_allclose(g_lim_nd, (-1.0, 0.5), rtol=1e-4)
+def test_plot_vg_vf_damping_axis_is_fixed(monkeypatch):
+    """A heavily damped mode (g = -9.4) does not stretch the damping axis beyond [-0.4, +0.2]."""
+    captured = {}
+    monkeypatch.setattr(plots.plt, "close", lambda fig: captured.setdefault("fig", fig))
+    velocity_range_m_s = np.array([5.0, 10.0, 20.0])
+    p_arr = np.array([1.0, 0.8, 0.6]) * (np.array([-4.7, -0.1, 0.2]) + 1j)
 
-
-def test_axis_limits_damping_fits_small_data_with_minimum_window():
-    freq_arr_rad_s = np.array([[10.0, 12.0]])
-    _, g_lim_nd = plots._axis_limits(freq_arr_rad_s, np.array([[-0.2, -0.01]]))
-    np.testing.assert_allclose(g_lim_nd, (-0.2, 0.1), rtol=1e-4)
-    _, g_lim_nd = plots._axis_limits(freq_arr_rad_s, np.array([[-0.01, -0.001]]))
-    np.testing.assert_allclose(g_lim_nd, (-0.2, 0.1), rtol=1e-4)
-
-
-def test_axis_limits_damping_widens_for_positive_g():
-    """Positive g of 0.15 needs L = 0.3 so that +L/2 still contains it."""
-    _, g_lim_nd = plots._axis_limits(np.array([[10.0, 12.0]]), np.array([[-0.05, 0.15]]))
-    np.testing.assert_allclose(g_lim_nd, (-0.3, 0.15), rtol=1e-4)
+    plots.plot_vg_vf(velocity_range_m_s, {"MODE 1": p_arr}, b_m=0.5)
+    np.testing.assert_allclose(
+        captured["fig"].axes[1].get_ylim(), (-0.4, 0.2), rtol=1e-4
+    )
+    plt.close(captured["fig"])
 
 
 def test_plot_vg_vf_marks_flutter_speed(monkeypatch):
