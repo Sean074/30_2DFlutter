@@ -6,8 +6,10 @@ import numpy as np
 import pytest
 
 from analysis.flutter import (
+    build_aero_matrix,
     build_mass_matrix,
     build_stiffness_matrix,
+    check_flap_dofs,
     compute_flutter,
     compute_structural_frequencies,
     damping_g_nd,
@@ -214,3 +216,117 @@ def test_damping_g_nd_is_twice_decay_rate_ratio():
     """p = k (gamma + i) with gamma = -1.5 % gives g = -0.03."""
     p_arr_nd = np.array([0.4 * (-0.015 + 1j), 2.0 * (0.01 + 1j)])
     np.testing.assert_allclose(damping_g_nd(p_arr_nd), [-0.03, 0.02], rtol=1e-4)
+
+
+# Shipped defaults plus the flap of data/inputs/flap_example.json.
+_FLAP_SECTION = {"c_hinge_nd": 0.6, "x_beta_nd": 0.0125, "inertia_beta_kg_m2": 0.0156}
+
+
+def _flap_matrices(omega_beta_rad_s: float) -> tuple[np.ndarray, np.ndarray]:
+    mass_matrix_kg = build_mass_matrix(10.0, 0.5, 0.5, 0.1, a_h_nd=-0.2, **_FLAP_SECTION)
+    stiffness_matrix_n_m = build_stiffness_matrix(
+        10.0**2 * 10.0, 25.0**2 * 0.5, omega_beta_rad_s**2 * _FLAP_SECTION["inertia_beta_kg_m2"]
+    )
+    return mass_matrix_kg, stiffness_matrix_n_m
+
+
+@pytest.mark.parametrize("k_nd", [0.05, 0.4, 1.5])
+def test_aero_matrix_flap_hinged_at_leading_edge_equals_pitch_about_it(k_nd):
+    """With c = a = -1 the flap rotation is the whole-chord pitch: rows and columns coincide."""
+    aero_matrix = build_aero_matrix(k_nd, theo_c(k_nd), 0.7, -1.0, -1.0 + 1e-12)
+    np.testing.assert_allclose(aero_matrix[:, 2], aero_matrix[:, 1], rtol=1e-4, atol=1e-9)
+    np.testing.assert_allclose(aero_matrix[2, :], aero_matrix[1, :], rtol=1e-4, atol=1e-9)
+
+
+def test_aero_matrix_flap_steady_lift_matches_thin_airfoil_theory():
+    """Steady lift per flap angle: dCl/dbeta = 2 (pi - theta_h + sin theta_h), cos theta_h = -c."""
+    c_hinge_nd = 0.45
+    theta_h_rad = np.arccos(-c_hinge_nd)
+    aero_matrix = build_aero_matrix(1e-9, 1.0 + 0j, 0.8, -0.3, c_hinge_nd)
+    # Row 0 is the downward force over rho pi b V^2: L = rho V^2 b Cl = -rho pi b V^2 a13 beta.
+    np.testing.assert_allclose(
+        -np.pi * np.real(aero_matrix[0, 2]),
+        2.0 * (np.pi - theta_h_rad + np.sin(theta_h_rad)),
+        rtol=1e-4,
+    )
+
+
+def test_aero_matrix_flap_added_mass_is_symmetric_positive_definite():
+    """The k^2 (apparent mass) part of A with C = 0 is symmetric and positive definite."""
+
+    def aero(k_nd: float) -> np.ndarray:
+        return build_aero_matrix(k_nd, 0.0, 1.0, -0.3, 0.5)
+
+    # A = X k^2 + Y i k + Z with C = 0, so X = (A(2) - 2 A(1) + A(0)) / 2.
+    added_mass = np.real(aero(2.0) - 2.0 * aero(1.0) + aero(0.0)) / 2.0
+    np.testing.assert_allclose(added_mass, added_mass.T, atol=1e-12)
+    assert np.all(np.linalg.eigvalsh(added_mass) > 0.0)
+
+
+def test_aero_matrix_rejects_hinge_outside_chord():
+    with pytest.raises(ValueError, match="hinge"):
+        build_aero_matrix(0.5, theo_c(0.5), 0.5, -0.2, 1.0)
+
+
+def test_build_mass_matrix_with_flap():
+    mass_matrix_kg = build_mass_matrix(10.0, 0.5, 0.5, 0.1, a_h_nd=-0.2, **_FLAP_SECTION)
+    s_beta_kg_m = 10.0 * 0.5 * 0.0125
+    pitch_flap_kg_m2 = 0.0156 + 0.5 * (0.6 + 0.2) * s_beta_kg_m
+    np.testing.assert_allclose(
+        mass_matrix_kg,
+        [
+            [10.0, 0.5, s_beta_kg_m],
+            [0.5, 0.5, pitch_flap_kg_m2],
+            [s_beta_kg_m, pitch_flap_kg_m2, 0.0156],
+        ],
+        rtol=1e-4,
+    )
+
+
+def test_build_mass_matrix_rejects_partial_flap():
+    with pytest.raises(ValueError, match="flap"):
+        build_mass_matrix(10.0, 0.5, 0.5, 0.1, x_beta_nd=0.01)
+
+
+def test_build_stiffness_matrix_with_flap_is_diagonal():
+    np.testing.assert_allclose(
+        build_stiffness_matrix(1000.0, 300.0, 14.0), np.diag([1000.0, 300.0, 14.0]), rtol=1e-4
+    )
+
+
+def test_check_flap_dofs_matches_hinge_to_matrix_size():
+    with pytest.raises(ValueError, match="hinge"):
+        check_flap_dofs(np.eye(3), None)
+    with pytest.raises(ValueError, match="no flap"):
+        check_flap_dofs(np.eye(2), 0.6)
+
+
+def test_compute_flutter_stiff_flap_recovers_two_dof_speed():
+    """A flap at 1000 rad/s barely moves: the 2-DOF flutter speed 19.5582 m/s is recovered."""
+    mass_matrix_kg, stiffness_matrix_n_m = _flap_matrices(1000.0)
+    velocity_range_m_s = np.linspace(0.5, 40.0, 400)
+    p_arr = compute_flutter(
+        mass_matrix_kg, stiffness_matrix_n_m, velocity_range_m_s, 1.225, 0.5, -0.2, c_hinge_nd=0.6
+    )
+    v_flutter_m_s, _ = find_flutter_speed(p_arr[1], velocity_range_m_s, 0.5)
+    np.testing.assert_allclose(v_flutter_m_s, 19.5582, rtol=1e-4)
+
+
+def test_compute_flutter_three_dof_flap_example():
+    """
+    data/inputs/flap_example.json: flutter of mode 2 at 20.4965 m/s, 16.859 rad/s (the k-method
+    gives the same point, see tests/test_k_method.py). The heavily damped heave mode stops
+    oscillating near 40 m/s; its branch ends there (NaN) instead of stopping the sweep.
+    """
+    mass_matrix_kg, stiffness_matrix_n_m = _flap_matrices(30.0)
+    velocity_range_m_s = np.linspace(0.5, 60.0, 600)
+    p_arr = compute_flutter(
+        mass_matrix_kg, stiffness_matrix_n_m, velocity_range_m_s, 1.225, 0.5, -0.2, c_hinge_nd=0.6
+    )
+    assert p_arr.shape == (3, 600)
+    v_flutter_m_s, omega_flutter_rad_s = find_flutter_speed(p_arr[1], velocity_range_m_s, 0.5)
+    np.testing.assert_allclose(v_flutter_m_s, 20.4965, rtol=1e-4)
+    np.testing.assert_allclose(omega_flutter_rad_s, 16.859, rtol=1e-4)
+    ended_arr = np.isnan(p_arr[0])
+    assert ended_arr[-1] and not ended_arr[0]
+    assert np.all(np.isfinite(p_arr[1:]))

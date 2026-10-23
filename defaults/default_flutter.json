@@ -12,5 +12,10 @@
   "k_tol_nd": 1e-10,
   "max_iter_nd": 200,
   "method": "pk",
-  "n_k_nd": 4000
+  "n_k_nd": 4000,
+  "flap": false,
+  "c_hinge_nd": 0.6,
+  "x_beta_nd": 0.0125,
+  "inertia_beta_kg_m2": 0.0156,
+  "omega_beta_rad_s": 30.0
 }

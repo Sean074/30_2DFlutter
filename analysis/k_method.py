@@ -9,6 +9,7 @@ from numpy.typing import NDArray
 
 from analysis.flutter import (
     build_aero_matrix,
+    check_flap_dofs,
     compute_structural_frequencies,
     theo_c,
     validate_velocity_range,
@@ -29,6 +30,7 @@ def compute_k_branches(
     b_m: float,
     a_h_nd: float,
     pi_nd: float = 3.141592653589793,
+    c_hinge_nd: float | None = None,
 ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
     """
     Solve the k-method eigenproblem at each reduced frequency and track the branches.
@@ -40,9 +42,9 @@ def compute_k_branches(
 
     Parameters
     ----------
-    mass_matrix_kg : NDArray[np.float64], shape (2, 2)
+    mass_matrix_kg : NDArray[np.float64], shape (n, n), n = 2 or 3
         Generalised structural mass matrix.
-    stiffness_matrix_n_m : NDArray[np.float64], shape (2, 2)
+    stiffness_matrix_n_m : NDArray[np.float64], shape (n, n), n = 2 or 3
         Structural stiffness matrix in N/m (or N·m/rad on pitch diagonal).
     k_arr_nd : NDArray[np.float64], shape (nk,)
         Reduced frequencies, positive and strictly decreasing (i.e. increasing speed).
@@ -54,6 +56,9 @@ def compute_k_branches(
         Elastic axis location aft of semi-chord mid-point (dimensionless).
     pi_nd : float
         Mathematical constant π, loaded from defaults/constants.json.
+    c_hinge_nd : float or None
+        Flap hinge location aft of mid-chord in semi-chords for 3x3 (heave, pitch, flap)
+        matrices; None (default) for the two-DOF section.
 
     Returns
     -------
@@ -64,8 +69,10 @@ def compute_k_branches(
     Raises
     ------
     ValueError
-        If k_arr_nd is empty, not positive or not strictly decreasing.
+        If k_arr_nd is empty, not positive or not strictly decreasing, or c_hinge_nd does not
+        match the matrix size.
     """
+    check_flap_dofs(mass_matrix_kg, c_hinge_nd)
     if len(k_arr_nd) == 0:
         raise ValueError("k_arr_nd must not be empty")
     if np.any(k_arr_nd <= 0.0) or np.any(np.diff(k_arr_nd) >= 0.0):
@@ -74,7 +81,7 @@ def compute_k_branches(
     n_modes = mass_matrix_kg.shape[0]
     z_arr = np.empty((n_modes, len(k_arr_nd)), dtype=np.complex128)
     for i, k_nd in enumerate(k_arr_nd):
-        aero_matrix = build_aero_matrix(k_nd, theo_c(k_nd), b_m, a_h_nd)
+        aero_matrix = build_aero_matrix(k_nd, theo_c(k_nd), b_m, a_h_nd, c_hinge_nd)
         z_col = np.linalg.eigvals(
             np.linalg.solve(
                 stiffness_matrix_n_m,
@@ -109,6 +116,7 @@ def compute_flutter_k(
     a_h_nd: float,
     n_k_nd: int = 4000,
     pi_nd: float = 3.141592653589793,
+    c_hinge_nd: float | None = None,
 ) -> NDArray[np.complex128]:
     """
     Compute k-method flutter results for every mode, on a velocity sweep.
@@ -126,9 +134,9 @@ def compute_flutter_k(
 
     Parameters
     ----------
-    mass_matrix_kg : NDArray[np.float64], shape (2, 2)
+    mass_matrix_kg : NDArray[np.float64], shape (n, n), n = 2 or 3
         Generalised structural mass matrix.
-    stiffness_matrix_n_m : NDArray[np.float64], shape (2, 2)
+    stiffness_matrix_n_m : NDArray[np.float64], shape (n, n), n = 2 or 3
         Structural stiffness matrix in N/m (or N·m/rad on pitch diagonal).
     velocity_range_m_s : NDArray[np.float64], shape (nv,)
         Velocity sweep points in m/s. Must be positive and strictly increasing.
@@ -142,6 +150,9 @@ def compute_flutter_k(
         Number of reduced frequencies in the sweep.
     pi_nd : float
         Mathematical constant π, loaded from defaults/constants.json.
+    c_hinge_nd : float or None
+        Flap hinge location aft of mid-chord in semi-chords for 3x3 (heave, pitch, flap)
+        matrices; None (default) for the two-DOF section.
 
     Returns
     -------
@@ -152,7 +163,8 @@ def compute_flutter_k(
     Raises
     ------
     ValueError
-        If the velocity sweep is invalid, n_k_nd < 2, or the matrices are not positive definite.
+        If the velocity sweep is invalid, n_k_nd < 2, the matrices are not positive definite,
+        or c_hinge_nd does not match the matrix size.
     """
     validate_velocity_range(velocity_range_m_s)
     if n_k_nd < 2:
@@ -163,12 +175,21 @@ def compute_flutter_k(
     k_min_nd = _K_MIN_MARGIN_ND * b_m * omega_arr_rad_s[0] / velocity_range_m_s[-1]
     k_arr_nd = np.geomspace(k_max_nd, k_min_nd, n_k_nd)
     v_branch_m_s, omega_branch_rad_s, g_branch_nd = compute_k_branches(
-        mass_matrix_kg, stiffness_matrix_n_m, k_arr_nd, rho_kg_m3, b_m, a_h_nd, pi_nd
+        mass_matrix_kg,
+        stiffness_matrix_n_m,
+        k_arr_nd,
+        rho_kg_m3,
+        b_m,
+        a_h_nd,
+        pi_nd,
+        c_hinge_nd,
     )
 
     # Both parts NaN: np.nan alone would give nan + 0j, i.e. a frequency of zero.
     p_arr_nd = np.full(
-        (len(omega_arr_rad_s), len(velocity_range_m_s)), complex(np.nan, np.nan), np.complex128
+        (len(omega_arr_rad_s), len(velocity_range_m_s)),
+        complex(np.nan, np.nan),
+        np.complex128,
     )
     for mode in range(len(omega_arr_rad_s)):
         v_arr_m_s = v_branch_m_s[mode]

@@ -6,14 +6,15 @@ solver made for issue #2 (commit `d147b89`): what the old secant solver did, why
 what replaced it, and how the result was verified.
 
 Figures are regenerated with `python docs/figures/make_figures.py`, which also prints the
-verification table in section 9.
+verification table in section 10.
 
 ---
 
 ## 1. Purpose and scope
 
 The tool finds the **flutter speed** of a two-degree-of-freedom airfoil section (the
-"typical section"): the lowest airspeed at which one of its aeroelastic modes stops being
+"typical section"), optionally with a trailing-edge flap as a third degree of freedom
+(section 8): the lowest airspeed at which one of its aeroelastic modes stops being
 damped and starts to grow. It sweeps a velocity range and, at each speed, solves the
 flutter equation for every structural mode with one of two methods:
 
@@ -208,7 +209,7 @@ The older **k-method** adds artificial structural damping, `K(1 + ig)`, and solv
 eigenproblem at fixed `k` for `Z = (1 + ig)/ω²`. Its `g` is the damping *required* for
 harmonic motion. It has no physical meaning away from `g = 0` and its modes are hard to
 track, but **at `g = 0` it solves exactly the same equation as the p-k method**. That makes
-it a clean independent check of the flutter point (section 9), and it is available as an
+it a clean independent check of the flutter point (section 10), and it is available as an
 alternative solver (section 7).
 
 ---
@@ -298,9 +299,16 @@ The solver raises `ValueError` instead of returning a wrong answer when:
 
 - `M` or `K` is not positive definite;
 - the velocity sweep is empty, non-positive or not strictly increasing;
-- the k iteration does not converge in `max_iter_nd` steps (default 200);
-- `k` falls to zero, which is static divergence (the remedy is a lower maximum speed);
 - two modes collapse onto one root (the remedy is more velocity points).
+
+A single mode the iteration can no longer follow **ends** instead: its `p` is NaN from that
+speed on, the other modes carry on, and the TUI prints a `[W]` with the speed. This happens
+when the k iteration does not converge in `max_iter_nd` steps (default 200) or `k` falls to
+zero. Both mean the root is leaving the oscillatory regime the p-k method assumes, either
+towards static divergence or, common with a flap (section 8), because the mode is so heavily
+damped (`g` of order −10 or below) that it is turning into a non-oscillatory subsidence.
+Until issue #12 either case stopped the whole sweep with an error, which with three modes
+would throw away a flutter point found at a lower speed.
 
 ---
 
@@ -370,7 +378,98 @@ it does not stop at static divergence: the lower branch simply ends at its fold.
 
 ---
 
-## 8. Comparison
+## 8. Control-surface (flap) degree of freedom
+
+With the four flap inputs (`c_hinge_nd`, `x_beta_nd`, `inertia_beta_kg_m2`,
+`omega_beta_rad_s`; issue #12) the section gains a trailing-edge flap hinged at `x = c b`
+(`−1 < c < 1`, in semi-chords aft of mid-chord), rotating by `β` (**positive trailing edge
+down**) against a hinge spring. The aerodynamics are still 2D, incompressible and
+Theodorsen's; only the number of degrees of freedom changes, from 2 to 3. Without the flap
+inputs the two-DOF model of sections 2–3 runs unchanged.
+
+### Structure
+
+With `x = [h, α, β]ᵀ`, Theodorsen's mass matrix is
+
+$$
+\mathbf M = \begin{bmatrix}
+m & S_\alpha & S_\beta \\
+S_\alpha & I_\alpha & I_\beta + b(c - a)S_\beta \\
+S_\beta & I_\beta + b(c - a)S_\beta & I_\beta
+\end{bmatrix},
+\qquad
+\mathbf K = \operatorname{diag}(k_h,\, k_\alpha,\, k_\beta),
+$$
+
+with `S_α = m b x_α`, `S_β = m b x_β` (flap static moment about the hinge, `x_β` measured
+aft of the hinge and normalised by the **total** mass `m`), `I_β` the flap inertia about the
+hinge, `I_α` the inertia of the whole section (flap included) about the EA and
+`k_β = I_β ω_β²`. A flap with its CG ahead of the hinge (`x_β < 0`) is mass-balanced.
+`build_mass_matrix` and `build_stiffness_matrix` return these 3×3 matrices when given the
+flap arguments.
+
+### Aerodynamics
+
+Theodorsen's flap terms depend on the hinge position through the geometric functions
+`T₁ … T₁₃(c)` (NACA Report 496), e.g.
+
+$$
+T_4 = -\cos^{-1}c + c\sqrt{1 - c^2}, \qquad
+T_{10} = \sqrt{1 - c^2} + \cos^{-1}c, \qquad
+T_{11} = \cos^{-1}c\,(1 - 2c) + \sqrt{1 - c^2}\,(2 - c), \qquad
+T_{12} = \sqrt{1 - c^2}\,(2 + c) - \cos^{-1}c\,(2c + 1).
+$$
+
+The quasi-steady downwash gains a flap term,
+`Q = ḣ + Vα + b(½ − a)α̇ + (T₁₀/π)Vβ + (b T₁₁/2π)β̇`, which drives the circulatory lift,
+pitching moment and (through `T₁₂`) the hinge moment `M_β`; each load also gains
+non-circulatory flap terms. `build_aero_matrix(..., c_hinge_nd)` returns the 3×3 `A(k)` with
+rows `[−L, M_EA, M_β]/(ρπbV²)`, so both solvers use it without change. The p-k and k-method
+eigenproblems are simply 3×3, and branch tracking in the k-method tries all 3! = 6 orderings
+per step.
+
+### Checks of the flap terms
+
+No published three-DOF flutter speed in a readable form was found, so the flap terms are
+checked against limits and against independent theory (`tests/test_flutter.py`):
+
+- **Hinge at the leading edge.** With `c = a = −1` a flap rotation is the same motion as a
+  pitch about the leading edge, so the `β` row and column of `A(k)` must equal the `α` ones.
+  They do, to 10⁻¹², at all `k` — a check of every `T` function and of the unsteady terms.
+- **Steady lift of a flap.** At `k → 0` with `C = 1` the flap lift is thin-airfoil theory's
+  `dC_L/dβ = 2(π − θ_h + sin θ_h)`, `cos θ_h = −c`.
+- **Steady loads against a vortex lattice.** A 4000-panel lumped-vortex solution of the thin
+  airfoil with a deflected flap reproduces the steady lift, pitching moment and hinge moment
+  due to `α` and `β` to 10⁻⁴ (the lattice's discretisation error). This was a one-off check
+  and is not part of the test suite.
+- **Apparent mass.** The `k²` part of `A(k)` is symmetric and positive definite, as an
+  added-mass matrix must be.
+- **Stiff flap.** With `ω_β = 1000 rad/s` the flap barely moves and the two-DOF flutter
+  speed of the shipped defaults (19.558 m/s) is recovered.
+- **p-k = k-method.** Both solvers give the same flutter point for the flap example
+  (section 10).
+
+### Example
+
+`data/inputs/flap_example.json` is the shipped-defaults section with a flap at `c = 0.6`
+(80 % chord), `x_β = 0.0125` (CG slightly aft of the hinge, unbalanced),
+`I_β = 0.0156 kg m²`, `ω_β = 30 rad/s`. The coupled in-vacuo frequencies are 9.93, 23.04
+and 37.93 rad/s. Flutter is still bending-torsion: mode 2 crosses `g = 0` at 20.50 m/s,
+16.86 rad/s, 5 % above the two-DOF section. The heave mode becomes so heavily damped that
+p-k stops following it near 40 m/s (section 6). Lowering the flap frequency below the pitch
+frequency changes the mechanism: at `ω_β = 15 rad/s` the flap mode flutters at 3.44 m/s,
+classic unbalanced-aileron flutter, and both solvers agree on that too.
+
+![V-g / V-f, flap example](figures/vg_flap_example.png)
+
+Near 17 m/s modes 1 and 2 approach (closest 4 rad/s apart in the complex plane) and veer,
+exchanging character: mode 2 becomes the coupled bending-torsion mode that flutters, while
+mode 1 takes over its heavy damping. This is not a tracking swap; a sweep four times finer
+gives the same curves to 10⁻⁹.
+
+---
+
+## 9. Comparison
 
 | | Old solver | New solver |
 |---|---|---|
@@ -399,13 +498,13 @@ root the two agree. The difference is robustness and keeping track of which mode
 | Meaning away from `g = 0` | approximate but physical | not physical |
 | Flutter point | `g = 0` crossing | same point (same equation at `g = 0`) |
 | Mode tracking | extrapolation in `V` | nearest eigenvalue in `k` |
-| Near divergence | `ValueError` when `k → 0` | branch folds back; NaN beyond the fold |
+| Near divergence or overdamping | mode ends (NaN) when `k → 0` | branch folds back; NaN beyond the fold |
 | Settings | `k_tol_nd`, `max_iter_nd` | `n_k_nd` |
 | Use for | flutter speed and damping margins | cross-checking the flutter point |
 
 ---
 
-## 9. Verification
+## 10. Verification
 
 An independent **k-method** solver, written directly from Theodorsen's `L` and `M_EA`
 (section 3) and sharing no code with `analysis/flutter.py`, is in
@@ -419,6 +518,7 @@ that one against the same flutter points.
 | Hodges & Pierce (`V_F/bω_α`, `ω_F/ω_α`) | 2.17036 | 0.64433 | 2.17036 | 0.64433 | 2.18389 |
 | Shipped defaults (m/s, rad/s) | 19.55820 | 16.01076 | 19.55813 | 16.01074 | 19.57463 |
 | `data/inputs/default.json` | none | | none | | none |
+| `data/inputs/flap_example.json` (3-DOF, m/s, rad/s) | 20.4965 | 16.8588 | 20.4967 | 16.8592 | |
 
 The Hodges & Pierce section (*Introduction to Structural Dynamics and Aeroelasticity*,
 ch. 5) has `a = −1/5`, `x_α = 1/10`, `μ = 20`, `r_α² = 6/25`, `σ = 2/5`. The shipped
@@ -452,10 +552,16 @@ With the CG ahead of the EA (`x_α < 0`) the section does not flutter in the ran
 | `C(k) → ½` | `test_theo_c_approaches_half_at_high_k` |
 | k-method flutter point = p-k (both cases) | `tests/test_k_method.py` |
 | k-method branch ends at its fold | `test_k_method_branch_is_nan_beyond_its_fold` |
+| Flap rows/columns = pitch with hinge at the LE | `test_aero_matrix_flap_hinged_at_leading_edge_equals_pitch_about_it` |
+| Steady flap lift = thin-airfoil theory | `test_aero_matrix_flap_steady_lift_matches_thin_airfoil_theory` |
+| Flap apparent mass symmetric, positive definite | `test_aero_matrix_flap_added_mass_is_symmetric_positive_definite` |
+| Stiff flap recovers the two-DOF speed | `test_compute_flutter_stiff_flap_recovers_two_dof_speed` |
+| Flap example flutter point, p-k mode ends | `test_compute_flutter_three_dof_flap_example` |
+| Flap example, k-method = p-k | `test_k_method_three_dof_flap_example_matches_pk` |
 
 ---
 
-## 10. Limitations and possible extensions
+## 11. Limitations and possible extensions
 
 - **Jones approximation.** The two-pole `C(k)` makes the flutter speed 0.1–0.6 % low in
   the verified cases. The exact Theodorsen function (Hankel functions) would remove this
@@ -471,41 +577,53 @@ With the CG ahead of the EA (`x_α < 0`) the section does not flutter in the ran
   reported. More velocity points avoid it.
 - **k-method branches can fold back** (`V(k)` not monotonic); speeds beyond the fold are
   not reported for that branch (section 7).
-- **Divergence is not computed.** The solver stops with an error when `k → 0`; it does not
-  report the divergence speed.
-- **Extensions:** a control-surface (third) degree of freedom, a structural damping input,
-  compressibility corrections, a divergence-speed calculation.
+- **Divergence is not computed.** A p-k mode whose `k → 0` simply ends (section 6); the
+  divergence speed is not reported, and an ended mode does not say whether it diverged or
+  became overdamped.
+- **Flap model.** Sealed hinge gap, no aerodynamic balance (overhang), rigid flap and no
+  freeplay or hinge friction; the hinge spring is linear and undamped. Not validated
+  against a published three-DOF flutter speed (section 8).
+- **Extensions:** a structural damping input, compressibility corrections, a
+  divergence-speed calculation, control-surface aerodynamic balance.
 
 ---
 
-## 11. Nomenclature and references
+## 12. Nomenclature and references
 
 | Symbol | Meaning | Code |
 |---|---|---|
 | `a` | EA position aft of mid-chord / `b` | `a_h_nd` |
 | `A(k)` | aerodynamic matrix | `build_aero_matrix` |
 | `b` | semi-chord | `b_m` |
+| `c` | flap hinge position aft of mid-chord / `b` (section 8) | `c_hinge_nd` |
 | `C(k) = F + iG` | Theodorsen function | `theo_c` |
 | `g` | damping, `2 Re(p)/Im(p)` (p-k); required damping `Im Z/Re Z` (k-method) | `damping_g_nd` |
 | `γ` | decay-rate ratio, `Re(p)/Im(p)` | |
 | `h` | heave of the EA, positive down | |
 | `I_α` | pitch inertia about the EA | `inertia_alpha_kg_m2` |
+| `I_β` | flap inertia about the hinge | `inertia_beta_kg_m2` |
 | `k` | reduced frequency `bω/V = Im(p)` | |
 | `k_h`, `k_α` | heave and pitch stiffness | `k_heave_n_m`, `k_alpha_nm_rad` |
 | `L`, `M_EA` | lift (up), moment about the EA (nose up) | |
+| `M_β` | hinge moment (trailing edge down) | |
 | `m` | section mass | `mass_kg` |
 | `M`, `K` | mass and stiffness matrices | `build_mass_matrix`, `build_stiffness_matrix` |
 | `p` | non-dimensional eigenvalue `s b / V` | rows of `compute_flutter` (and `compute_flutter_k`) output |
 | `r_α²` | `I_α/(m b²)` | |
 | `s = σ + iω` | physical eigenvalue | |
+| `S_β` | flap static moment about the hinge, `m b x_β` | |
+| `T₁ … T₁₃` | Theodorsen's flap geometry functions of `c` | `_theodorsen_t_nd` |
 | `V`, `V_F` | airspeed, flutter speed | `velocity_range_m_s`, `find_flutter_speed` |
 | `x_α` | CG position aft of the EA / `b` | `x_alpha_nd` |
+| `x_β` | flap CG aft of the hinge / `b`, normalised by the total mass | `x_beta_nd` |
 | `Z` | k-method eigenvalue `(1 + ig)/ω²` | `compute_k_branches` |
 | `α` | pitch, positive nose up | |
+| `β` | flap rotation, positive trailing edge down | |
 | `μ` | mass ratio `m/(πρb²)` | |
 | `ρ` | air density | `rho_kg_m3` |
 | `σ` | frequency ratio `ω_h/ω_α` (section 2); real part of `s` (section 4) | |
 | `ω_h`, `ω_α` | uncoupled heave and pitch frequencies | `omega_heave_rad_s`, `omega_alpha_rad_s` |
+| `ω_β` | uncoupled flap frequency, `√(k_β/I_β)` | `omega_beta_rad_s` |
 
 1. T. Theodorsen, *General Theory of Aerodynamic Instability and the Mechanism of
    Flutter*, NACA Report 496, 1935.
