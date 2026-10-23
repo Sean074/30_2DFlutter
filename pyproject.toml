@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flutter2d"
+version = "1.0.0"
+description = "2D (heave, pitch, optional flap) flutter analysis: p-k and k-method solvers"
+authors = [{ name = "Sean O'Meara" }]
+requires-python = ">=3.11"
+dependencies = ["numpy", "matplotlib"]
+
+[tool.setuptools]
+packages = ["flutter2d", "flutter2d.analysis", "flutter2d.plotting"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 100

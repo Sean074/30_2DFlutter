@@ -129,7 +129,7 @@ snap to the grid.
 
 ### k-method
 
-With `"method": "k"` the classical k-method is used instead (`analysis/k_method.py`). It
+With `"method": "k"` the classical k-method is used instead (`flutter2d/analysis/k_method.py`). It
 adds artificial structural damping `K(1 + ig)`, sweeps the reduced frequency k and solves one
 eigenproblem per k for `Z = (1 + ig) / omega^2`, giving `omega`, `V = b omega / k` and the
 *required* damping g of each branch. The branches are interpolated onto the velocity sweep, so
@@ -176,19 +176,50 @@ build.bat         # Windows -> dist\flutter2d.exe
 
 Both run PyInstaller on `build.spec`. Build on each platform for its own binary.
 
+## Using the engine as a package
+
+`flutter2d/` is an installable package (solvers and the V-g / V-f figure; the terminal
+program, `defaults/` and `file_io/` are not included):
+
+```bash
+pip install "flutter2d @ https://github.com/Sean074/30_2DFlutter/archive/refs/tags/v1.0.0.tar.gz"
+```
+
+```python
+import numpy as np
+from matplotlib.figure import Figure
+from flutter2d.analysis.flutter import (
+    build_mass_matrix, build_stiffness_matrix, compute_flutter, find_flutter_speed,
+)
+from flutter2d.plotting.plots import FIGSIZE_IN, draw_vg_vf
+
+mass_matrix_kg = build_mass_matrix(10.0, 0.5, 0.5, 0.1)
+stiffness_matrix_n_m = build_stiffness_matrix(10.0**2 * 10.0, 25.0**2 * 0.5)
+velocity_range_m_s = np.linspace(1.0, 100.0, 200)
+p_arr_modes = compute_flutter(
+    mass_matrix_kg, stiffness_matrix_n_m, velocity_range_m_s, 1.225, 0.5, -0.2
+)
+find_flutter_speed(p_arr_modes[1], velocity_range_m_s, 0.5)   # (19.56, 16.01)
+
+fig = Figure(figsize=FIGSIZE_IN)       # no pyplot: safe in a web server
+draw_vg_vf(fig, velocity_range_m_s, {"MODE 1": p_arr_modes[0], "MODE 2": p_arr_modes[1]}, 0.5)
+fig.savefig("vg.svg")
+```
+
 ## Layout
 
 ```
-main.py              entry point (calls ui.tui.run_tui)
-analysis/flutter.py  matrix builders, p-k solver, flutter-speed interpolation
-analysis/k_method.py k-method solver
-file_io/             loader.py (JSON / CSV in), exporter.py (results out)
-plotting/plots.py    V-g / V-f figure
-ui/tui.py            four-stage terminal workflow and batch mode
-defaults/            default values and constants (JSON)
-data/inputs/         example input files (default.json, flap_example.json)
-tests/               pytest, mirrors the source tree
-docs/                theory (theory_pk_flutter.md + figures/), code standard, TUI guide
+main.py                         entry point (calls ui.tui.run_tui)
+flutter2d/                      engine package (see below)
+  analysis/flutter.py           matrix builders, p-k solver, flutter-speed interpolation
+  analysis/k_method.py          k-method solver
+  plotting/plots.py             V-g / V-f figure
+file_io/                        loader.py (JSON / CSV in), exporter.py (results out)
+ui/tui.py                       four-stage terminal workflow and batch mode
+defaults/                       default values and constants (JSON)
+data/inputs/                    example input files (default.json, flap_example.json)
+tests/                          pytest, mirrors the source tree
+docs/                           theory (theory_pk_flutter.md + figures/), code standard, TUI guide
 ```
 
 Code conventions are in `docs/engineering_code_standard.md` and `docs/user_interface.md`.

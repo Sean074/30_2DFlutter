@@ -26,7 +26,7 @@ from numpy.typing import NDArray  # noqa: E402
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 
-from analysis.flutter import (  # noqa: E402
+from flutter2d.analysis.flutter import (  # noqa: E402
     build_aero_matrix,
     build_mass_matrix,
     build_stiffness_matrix,
@@ -36,8 +36,8 @@ from analysis.flutter import (  # noqa: E402
     find_flutter_speed,
     theo_c,
 )
-from analysis.k_method import compute_flutter_k  # noqa: E402
-from plotting.plots import plot_vg_vf  # noqa: E402
+from flutter2d.analysis.k_method import compute_flutter_k  # noqa: E402
+from flutter2d.plotting.plots import plot_vg_vf  # noqa: E402
 
 _OUT_DIR = Path(__file__).resolve().parent
 _DPI = 150

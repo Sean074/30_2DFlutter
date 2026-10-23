@@ -1,7 +1,7 @@
 # p-k and k-Method Flutter Analysis of a Typical Section: Theory and Solvers
 
-This document explains the physics and numerics behind `analysis/flutter.py` (p-k) and
-`analysis/k_method.py` (k-method, selectable since issue #10), and records the change of p-k
+This document explains the physics and numerics behind `flutter2d/analysis/flutter.py` (p-k) and
+`flutter2d/analysis/k_method.py` (k-method, selectable since issue #10), and records the change of p-k
 solver made for issue #2 (commit `d147b89`): what the old secant solver did, why it failed,
 what replaced it, and how the result was verified.
 
@@ -312,7 +312,7 @@ would throw away a flutter point found at a lower speed.
 
 ---
 
-## 7. k-method solver (`analysis/k_method.py`)
+## 7. k-method solver (`flutter2d/analysis/k_method.py`)
 
 Selected with `"method": "k"` in the input file or `k` at the METHOD prompt; `"pk"` (the
 default) selects section 6.
@@ -489,7 +489,7 @@ root the two agree. The difference is robustness and keeping track of which mode
 
 ### p-k vs k-method
 
-| | p-k (`analysis/flutter.py`) | k-method (`analysis/k_method.py`) |
+| | p-k (`flutter2d/analysis/flutter.py`) | k-method (`flutter2d/analysis/k_method.py`) |
 |---|---|---|
 | Swept variable | speed `V` | reduced frequency `k` (`V` is an output) |
 | Unknown | complex `p` per mode | `Z = (1 + ig)/ω²` per branch |
@@ -507,7 +507,7 @@ root the two agree. The difference is robustness and keeping track of which mode
 ## 10. Verification
 
 An independent **k-method** solver, written directly from Theodorsen's `L` and `M_EA`
-(section 3) and sharing no code with `analysis/flutter.py`, is in
+(section 3) and sharing no code with `flutter2d/analysis/flutter.py`, is in
 `docs/figures/make_figures.py`. At `g = 0` it must agree with the p-k solver exactly
 (section 4). It is kept separate from the program's own k-method (section 7), which reuses
 `build_aero_matrix` and so would not catch an error there; `tests/test_k_method.py` checks

@@ -6,3 +6,5 @@ __pycache__/
 
 data/outputs/
 .DS_Store
+build/
+*.egg-info/
